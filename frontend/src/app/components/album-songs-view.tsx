@@ -1,7 +1,9 @@
 "use client";
 
 import { ChevronLeft, Play } from "lucide-react";
-import type { Album, Song } from "../music-types";
+import type { Album, Playlist, Song } from "../music-types";
+import { AddToPlaylistPrompt } from "./add-to-playlist-prompt";
+import { LikeSongButton } from "./like-song-button";
 import { PlayQueueActions } from "./play-queue-actions";
 
 type AlbumSongsViewProps = {
@@ -10,6 +12,10 @@ type AlbumSongsViewProps = {
   onBack: () => void;
   onPlayAlbum: () => void;
   onQueueAlbum: () => void;
+  playlists: Playlist[];
+  onAddToPlaylist: (song: Song, playlistId: number) => void;
+  likedSongIds: Set<number>;
+  onToggleLike: (song: Song) => void;
   onPlaySong: (song: Song) => void;
   onAddToQueue: (song: Song) => void;
 };
@@ -20,6 +26,10 @@ export function AlbumSongsView({
   onBack,
   onPlayAlbum,
   onQueueAlbum,
+  playlists,
+  onAddToPlaylist,
+  likedSongIds,
+  onToggleLike,
   onPlaySong,
   onAddToQueue,
 }: AlbumSongsViewProps) {
@@ -37,9 +47,9 @@ export function AlbumSongsView({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
         <div className="mb-4 border-b border-zinc-800 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="text-3xl font-semibold">{selectedAlbum.title}</h2>
-              <p className="mt-2 text-zinc-400">{selectedAlbum.artist}</p>
+            <div className="min-w-0">
+              <h2 className="truncate text-3xl font-semibold">{selectedAlbum.title}</h2>
+              <p className="mt-2 truncate text-zinc-400">{selectedAlbum.artist}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -66,23 +76,25 @@ export function AlbumSongsView({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-motion-list>
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+        >
           <table className="w-full table-fixed border-collapse">
             <thead className="sticky top-0 z-10 bg-zinc-950/90 text-left text-xs uppercase tracking-[0.18em] text-zinc-500 backdrop-blur">
               <tr>
                 <th className="w-[6%] px-5 py-3 font-medium">#</th>
-                <th className="w-[44%] px-5 py-3 font-medium">Title</th>
-                <th className="w-[22%] px-5 py-3 font-medium">Artist</th>
-                <th className="w-[12%] px-5 py-3 font-medium">Time</th>
-                <th className="w-[16%] px-5 py-3 font-medium">Actions</th>
+                <th className="w-[36%] px-5 py-3 font-medium">Title</th>
+                <th className="w-[20%] px-5 py-3 font-medium">Artist</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Time</th>
+                <th className="w-[28%] px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {albumSongs.map((song, index) => (
                 <tr
-                  key={song.id}
-                  data-motion-item
-                  className="border-t border-zinc-800 transition hover:bg-zinc-800/70"
+                  key={`${song.id}-${index}`}
+                  className="border-t border-zinc-800 transition hover:bg-zinc-800/70 ourmusic-animate-fade-up"
+                  style={{ animationDelay: `${index * 16}ms` }}
                 >
                   <td className="px-5 py-4 text-sm text-zinc-500 align-middle">
                     {index + 1}
@@ -99,7 +111,18 @@ export function AlbumSongsView({
                     {formatTime(song.duration)}
                   </td>
                   <td className="px-5 py-4 align-middle">
-                    <PlayQueueActions song={song} onPlaySong={onPlaySong} onAddToQueue={onAddToQueue} />
+                    <PlayQueueActions song={song} onPlaySong={onPlaySong} onAddToQueue={onAddToQueue}>
+                      <AddToPlaylistPrompt
+                        song={song}
+                        playlists={playlists}
+                        onAddToPlaylist={onAddToPlaylist}
+                      />
+                      <LikeSongButton
+                        song={song}
+                        isLiked={likedSongIds.has(song.id)}
+                        onToggleLike={onToggleLike}
+                      />
+                    </PlayQueueActions>
                   </td>
                 </tr>
               ))}

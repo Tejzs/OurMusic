@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --scrollbar-track: rgba(255, 255, 255, 0.035);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.28);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.36);
 }
 
 @theme inline {
@@ -25,7 +29,7 @@ html {
   overflow-x: hidden;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.04);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 body {
@@ -39,13 +43,12 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.04);
-  -ms-overflow-style: none;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 *::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 *::-webkit-scrollbar-button {
@@ -72,21 +75,38 @@ body {
 }
 
 *::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 9999px;
+  background: var(--scrollbar-track);
 }
 
 *::-webkit-scrollbar-thumb {
   border-radius: 9999px;
-  border: 2px solid rgba(255, 255, 255, 0.04);
-  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid transparent;
+  background: var(--scrollbar-thumb);
+  background-clip: content-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  background-clip: content-box;
 }
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  body,
+  aside,
+  main,
+  div {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
 }
 
 .apple-range {
@@ -102,6 +122,8 @@ body {
     rgba(255, 255, 255, 0.12) 100%
   );
   outline: none;
+  transition: filter 160ms ease, box-shadow 160ms ease;
+  will-change: background;
 }
 
 .apple-range::-webkit-slider-runnable-track {
@@ -172,5 +194,76 @@ body {
 
   80% {
     transform: translateX(2px);
+  }
+}
+
+@keyframes ourmusic-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ourmusic-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ourmusic-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes ourmusic-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ourmusic-animate-fade-up {
+  animation: ourmusic-fade-up 260ms ease-out both;
+}
+
+.ourmusic-animate-fade-in {
+  animation: ourmusic-fade-in 180ms ease-out both;
+}
+
+.ourmusic-animate-slide-in-left {
+  animation: ourmusic-slide-in-left 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.ourmusic-animate-pop-in {
+  animation: ourmusic-pop-in 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ourmusic-animate-fade-up,
+  .ourmusic-animate-fade-in,
+  .ourmusic-animate-slide-in-left,
+  .ourmusic-animate-pop-in {
+    animation: none !important;
   }
 }

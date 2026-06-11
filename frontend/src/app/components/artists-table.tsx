@@ -18,9 +18,10 @@ export function ArtistsTable({
   onLoadMore,
 }: ArtistsTableProps) {
   const filteredArtists = artists;
-
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80" data-motion-list>
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80"
+    >
       <div className="border-b border-zinc-800 px-5 py-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -45,7 +46,6 @@ export function ArtistsTable({
               <tr
                 key={artist.id}
                 onClick={() => onOpenArtist(artist)}
-                data-motion-item
                 className="cursor-pointer border-t border-zinc-800 transition hover:bg-zinc-800/70"
               >
                 <td className="px-5 py-4">

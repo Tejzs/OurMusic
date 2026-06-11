@@ -1,4 +1,15 @@
-export type View = "songs" | "albums" | "artists" | "adminUsers" | "albumSongs" | "artistSongs";
+export type View =
+  | "home"
+  | "songs"
+  | "albums"
+  | "playlists"
+  | "likedSongs"
+  | "recentlyPlayed"
+  | "mostPlayed"
+  | "artists"
+  | "adminUsers"
+  | "albumSongs"
+  | "artistSongs";
 
 export type AdminUser = {
   id: number;
@@ -22,10 +33,41 @@ export type Album = {
   artworkSongId: number;
 };
 
+export type Playlist = {
+  id: number;
+  name: string;
+  hasCover: boolean;
+};
+
 export type Song = {
   id: number;
   title: string;
   artist: string;
   album: string;
   duration: number;
+};
+
+export type SongLyrics = {
+  id: number;
+  name: string;
+  trackName: string;
+  artistName: string;
+  albumName: string;
+  duration: number;
+  instrumental: boolean;
+  plainLyrics: string | null;
+  syncedLyrics?: string | null;
+  lyricsfile: string | null;
+};
+
+export type MostPlayedSong = {
+  song: Song;
+  playCount: number;
+};
+
+export type LibraryStats = {
+  totalSongs: number;
+  totalAlbums: number;
+  totalArtists: number;
+  totalPlaylists: number;
 };

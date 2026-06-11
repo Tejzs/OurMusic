@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import {
+  Download,
+  Heart,
+  ListMusic,
   Pause,
   Play,
   Repeat1,
@@ -15,6 +18,7 @@ import {
 } from "lucide-react";
 import type { RefObject } from "react";
 import type { Song } from "../music-types";
+import { apiUrl, songArtworkUrl, songStreamUrl } from "../lib/auth";
 
 type RepeatMode = "off" | "one" | "queue";
 
@@ -30,12 +34,16 @@ type PlayerBarProps = {
   playNonce: number;
   hasQueuedSongs: boolean;
   repeatMode: RepeatMode;
+  isCurrentSongLiked: boolean;
+  isLyricsOpen: boolean;
   playerBarRef: RefObject<HTMLDivElement | null>;
   volumeControlRef: RefObject<HTMLDivElement | null>;
   audioRef: RefObject<HTMLAudioElement | null>;
   onPreviousTrack: () => void;
   onTogglePlay: () => void;
   onCycleRepeatMode: () => void;
+  onToggleLikeCurrentSong: () => void;
+  onToggleLyrics: () => void;
   onNextTrack: () => void;
   onSeek: (value: string) => void;
   onToggleMute: () => void;
@@ -43,11 +51,14 @@ type PlayerBarProps = {
   onVolumeHoverChange: (isHovered: boolean) => void;
   onEnded: () => void;
   onLoadedMetadata: (duration: number) => void;
+  onRestorePlaybackPosition: (duration: number) => void;
   onTimeUpdate: (currentTime: number) => void;
   onPlay: () => void;
   onPause: () => void;
   onSeeked: (currentTime: number) => void;
   onVolumeUpdate: (volume: number, muted: boolean) => void;
+  onError: () => void;
+  onStalled: () => void;
 };
 
 export function PlayerBar({
@@ -62,12 +73,16 @@ export function PlayerBar({
   playNonce,
   hasQueuedSongs,
   repeatMode,
+  isCurrentSongLiked,
+  isLyricsOpen,
   playerBarRef,
   volumeControlRef,
   audioRef,
   onPreviousTrack,
   onTogglePlay,
   onCycleRepeatMode,
+  onToggleLikeCurrentSong,
+  onToggleLyrics,
   onNextTrack,
   onSeek,
   onToggleMute,
@@ -75,11 +90,14 @@ export function PlayerBar({
   onVolumeHoverChange,
   onEnded,
   onLoadedMetadata,
+  onRestorePlaybackPosition,
   onTimeUpdate,
   onPlay,
   onPause,
   onSeeked,
   onVolumeUpdate,
+  onError,
+  onStalled,
 }: PlayerBarProps) {
   return (
     <div ref={playerBarRef} className="relative z-50 mt-4 w-full">
@@ -88,9 +106,9 @@ export function PlayerBar({
           <div className="min-w-0 lg:justify-self-start">
             <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {currentSong ? (
-                <>
+                <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                   <Image
-                    src={`http://192.168.1.76:8808/api/songs/${currentSong.id}/artwork`}
+                    src={songArtworkUrl(currentSong.id)}
                     alt={currentSong.title}
                     className="h-12 w-12 shrink-0 rounded-2xl object-cover ring-1 ring-white/10 sm:h-14 sm:w-14"
                     width={56}
@@ -103,7 +121,42 @@ export function PlayerBar({
                     <p className="truncate text-sm font-medium text-white">{currentSong.title}</p>
                     <p className="truncate text-xs text-zinc-400">{currentSong.artist}</p>
                   </div>
-                </>
+
+                  <button
+                    type="button"
+                    onClick={onToggleLikeCurrentSong}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-100 transition hover:border-white/20 hover:bg-white/10 active:scale-95"
+                    aria-label={isCurrentSongLiked ? `Unlike ${currentSong.title}` : `Like ${currentSong.title}`}
+                    aria-pressed={isCurrentSongLiked}
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${isCurrentSongLiked ? "fill-red-400 text-red-400" : ""}`}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onToggleLyrics}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                      isLyricsOpen
+                        ? "border-white/20 bg-white text-zinc-950 hover:bg-zinc-200 active:scale-95"
+                        : "border-white/10 bg-white/5 text-zinc-100 hover:border-white/20 hover:bg-white/10 active:scale-95"
+                    }`}
+                    aria-label={isLyricsOpen ? "Hide lyrics" : "Show lyrics"}
+                    aria-pressed={isLyricsOpen}
+                  >
+                    <ListMusic className="h-4 w-4" />
+                  </button>
+
+                  <a
+                    href={apiUrl(`/api/songs/${currentSong.id}/download`)}
+                    download
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-100 transition hover:border-white/20 hover:bg-white/10"
+                    aria-label={`Download ${currentSong.title}`}
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                </div>
               ) : (
                 <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/60 text-zinc-500 sm:h-14 sm:w-14">
@@ -124,7 +177,7 @@ export function PlayerBar({
                 type="button"
                 onClick={onPreviousTrack}
                 disabled={currentSong === null}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-10"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 sm:h-10 sm:w-10"
                 aria-label="Previous track"
               >
                 <SkipBack className="h-4 w-4" />
@@ -134,7 +187,7 @@ export function PlayerBar({
                 type="button"
                 onClick={onTogglePlay}
                 disabled={currentSong === null && !hasQueuedSongs}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-zinc-950 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 sm:h-11 sm:w-11"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-zinc-950 transition hover:bg-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 disabled:active:scale-100 sm:h-11 sm:w-11"
                 aria-label={
                   currentSong
                     ? isPlaying
@@ -156,7 +209,7 @@ export function PlayerBar({
                 type="button"
                 onClick={onNextTrack}
                 disabled={currentSong === null}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-10"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 sm:h-10 sm:w-10"
                 aria-label="Next track"
               >
                 <SkipForward className="h-4 w-4" />
@@ -170,7 +223,7 @@ export function PlayerBar({
                   repeatMode !== "off"
                     ? "bg-white text-zinc-950 hover:bg-zinc-200"
                     : "text-zinc-300 hover:bg-white/10 hover:text-white"
-                } disabled:cursor-not-allowed disabled:opacity-40`}
+                } active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100`}
                 aria-label={
                   repeatMode === "off"
                     ? "Repeat off"
@@ -219,7 +272,7 @@ export function PlayerBar({
               type="button"
               onClick={onToggleMute}
               disabled={currentSong === null}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 transition hover:bg-white/10 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
               aria-label={isMuted ? "Unmute" : "Mute"}
             >
               {isMuted || volume === 0 ? (
@@ -247,15 +300,20 @@ export function PlayerBar({
             <audio
               ref={audioRef}
               className="hidden"
-              autoPlay
               onEnded={onEnded}
-              onLoadedMetadata={(e) => onLoadedMetadata(e.currentTarget.duration || 0)}
+              onError={onError}
+              onLoadedMetadata={(e) => {
+                const nextDuration = e.currentTarget.duration || 0;
+                onLoadedMetadata(nextDuration);
+                onRestorePlaybackPosition(nextDuration);
+              }}
+              onStalled={onStalled}
               onTimeUpdate={(e) => onTimeUpdate(e.currentTarget.currentTime)}
               onPlay={onPlay}
               onPause={onPause}
               onSeeked={(e) => onSeeked(e.currentTarget.currentTime)}
               onVolumeChange={(e) => onVolumeUpdate(e.currentTarget.volume, e.currentTarget.muted)}
-              src={`http://192.168.1.76:8808/api/songs/${currentSong.id}/stream?v=${playNonce}`}
+              src={songStreamUrl(currentSong.id, playNonce)}
             />
           ) : null}
         </div>

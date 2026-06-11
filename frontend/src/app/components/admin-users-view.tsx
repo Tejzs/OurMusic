@@ -1,10 +1,10 @@
 "use client";
 
 import { Eye, EyeOff, Pencil, Plus, Trash2, UserRound } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { AdminUser } from "../music-types";
-import { registerUser } from "../lib/auth";
+import { apiUrl, registerUser } from "../lib/auth";
 
 type AdminUsersViewProps = {
   onUnauthorized?: () => void;
@@ -15,7 +15,7 @@ type UserRow = AdminUser & {
 };
 
 async function fetchAdminUsers() {
-  const response = await fetch("/api/admin/users", {
+  const response = await fetch(apiUrl("/api/admin/users"), {
     credentials: "include",
   });
 
@@ -24,6 +24,7 @@ async function fetchAdminUsers() {
 }
 
 export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
+  const viewRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -42,8 +43,8 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
     message: string;
   } | null>(null);
   const [editErrorNonce, setEditErrorNonce] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
+  const [, setMessage] = useState<string | null>(null);
 
   const adminCount = useMemo(() => users.filter((user) => user.isAdmin).length, [users]);
 
@@ -120,7 +121,7 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
     setDeletingUserId(userId);
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(apiUrl(`/api/admin/users/${userId}`), {
         method: "DELETE",
         credentials: "include",
       });
@@ -300,7 +301,7 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
     setSavingUserId(userId);
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}/${editingField}`, {
+      const response = await fetch(apiUrl(`/api/admin/users/${userId}/${editingField}`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -339,8 +340,8 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
-      <div className="shrink-0">
+    <div ref={viewRef} className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
+      <div className="shrink-0 ourmusic-animate-fade-up">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Admin</p>
@@ -371,7 +372,7 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
       </div>
 
       {isFormOpen ? (
-        <form className="mt-6 grid gap-4 rounded-3xl border border-zinc-800 bg-zinc-950/60 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end" onSubmit={handleCreateUser}>
+        <form className="mt-6 grid gap-4 rounded-3xl border border-zinc-800 bg-zinc-950/60 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end ourmusic-animate-pop-in" onSubmit={handleCreateUser}>
           <label className="block space-y-2">
             <span className="text-sm font-medium text-zinc-200">Username</span>
             <input
@@ -406,18 +407,6 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
         </form>
       ) : null}
 
-      {error ? (
-        <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </p>
-      ) : null}
-
-      {message ? (
-        <p className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          {message}
-        </p>
-      ) : null}
-
       <div className="mt-6 min-h-0 flex-1 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40">
         <div className="h-full overflow-auto">
           <table className="min-w-full table-fixed divide-y divide-zinc-800">
@@ -443,9 +432,12 @@ export function AdminUsersView({ onUnauthorized }: AdminUsersViewProps) {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                users.map((user, index) => (
                   <Fragment key={user.id}>
-                    <tr className="transition hover:bg-white/5">
+                    <tr
+                      className="transition hover:bg-white/5 ourmusic-animate-fade-up"
+                      style={{ animationDelay: `${index * 16}ms` }}
+                    >
                       <td className="px-4 py-4 align-top">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-200">

@@ -1,6 +1,19 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 export const FRONTEND_SESSION_COOKIE = "ourmusic_frontend_session";
 
+export function apiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+export function songArtworkUrl(songId: number) {
+  return apiUrl(`/api/songs/${songId}/artwork`);
+}
+
+export function songStreamUrl(songId: number, playNonce: number) {
+  return apiUrl(`/api/songs/${songId}/stream?v=${playNonce}`);
+}
+
 export type AuthSession = {
   id: number;
   username: string;
@@ -28,7 +41,7 @@ async function readJson(response: Response) {
 
 export async function fetchAuthSession(signal?: AbortSignal): Promise<AuthSession | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const response = await fetch(apiUrl("/api/auth/me"), {
       credentials: "include",
       signal,
     });
@@ -57,7 +70,7 @@ export async function fetchAuthSession(signal?: AbortSignal): Promise<AuthSessio
 }
 
 export async function loginUser(username: string, password: string) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  const response = await fetch(apiUrl("/api/auth/login"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -70,7 +83,7 @@ export async function loginUser(username: string, password: string) {
 }
 
 export async function registerUser(username: string, password: string) {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const response = await fetch(apiUrl("/api/auth/register"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -83,7 +96,7 @@ export async function registerUser(username: string, password: string) {
 }
 
 export async function logoutUser() {
-  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+  const response = await fetch(apiUrl("/api/auth/logout"), {
     method: "POST",
     credentials: "include",
   });

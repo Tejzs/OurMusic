@@ -8,6 +8,7 @@ import { AlbumsGrid } from "./albums-grid";
 type AlbumsViewProps = {
   albums: Album[];
   page: number;
+  totalPages?: number;
   scrollKey: string;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
@@ -23,6 +24,7 @@ type AlbumsViewProps = {
 export function AlbumsView({
   albums,
   page,
+  totalPages,
   scrollKey,
   hasPreviousPage,
   hasNextPage,
@@ -66,7 +68,10 @@ export function AlbumsView({
       <div className="shrink-0 mb-4 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Albums</h2>
-          <p className="text-sm text-zinc-500">Page {page}</p>
+          <p className="text-sm text-zinc-500">
+            Page {page}
+            {totalPages ? ` of ${totalPages}` : ""}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">

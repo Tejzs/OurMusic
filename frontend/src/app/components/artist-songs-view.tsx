@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import { ChevronLeft } from "lucide-react";
-import type { Album, Artist, Song } from "../music-types";
+import type { Album, Artist, Playlist, Song } from "../music-types";
+import { AddToPlaylistPrompt } from "./add-to-playlist-prompt";
+import { LikeSongButton } from "./like-song-button";
 import { PlayQueueActions } from "./play-queue-actions";
+import { songArtworkUrl } from "../lib/auth";
 
 type ArtistSongsViewProps = {
   selectedArtist: Artist;
@@ -13,6 +16,10 @@ type ArtistSongsViewProps = {
   onOpenArtistAlbum: (album: Album) => void;
   onPlaySong: (song: Song) => void;
   onAddToQueue: (song: Song) => void;
+  playlists: Playlist[];
+  onAddToPlaylist: (song: Song, playlistId: number) => void;
+  likedSongIds: Set<number>;
+  onToggleLike: (song: Song) => void;
 };
 
 export function ArtistSongsView({
@@ -23,6 +30,10 @@ export function ArtistSongsView({
   onOpenArtistAlbum,
   onPlaySong,
   onAddToQueue,
+  playlists,
+  onAddToPlaylist,
+  likedSongIds,
+  onToggleLike,
 }: ArtistSongsViewProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
@@ -53,17 +64,19 @@ export function ArtistSongsView({
             <h3 className="text-lg font-semibold">Albums</h3>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden divide-y divide-zinc-800">
-            {artistAlbums.map((album) => (
-              <button
-                type="button"
-                key={album.id}
-                onClick={() => onOpenArtistAlbum(album)}
-                data-motion-item
-                className="relative flex h-[88px] w-full items-center justify-between gap-4 overflow-hidden px-5 py-4 text-left transition hover:brightness-110"
-              >
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden divide-y divide-zinc-800"
+          >
+                {artistAlbums.map((album, index) => (
+                  <button
+                    type="button"
+                    key={album.id}
+                    onClick={() => onOpenArtistAlbum(album)}
+                    className="relative flex h-[88px] w-full items-center justify-between gap-4 overflow-hidden px-5 py-4 text-left transition hover:brightness-110 ourmusic-animate-fade-up"
+                    style={{ animationDelay: `${index * 16}ms` }}
+                  >
                 <Image
-                  src={`http://192.168.1.76:8808/api/songs/${album.artworkSongId}/artwork`}
+                  src={songArtworkUrl(album.artworkSongId)}
                   alt={album.title}
                   className="absolute inset-0 h-full w-full object-cover object-center scale-110 blur-xs"
                   width={500}
@@ -75,7 +88,7 @@ export function ArtistSongsView({
 
                 <div className="relative z-10 flex min-w-0 items-center gap-4">
                   <Image
-                    src={`http://192.168.1.76:8808/api/songs/${album.artworkSongId}/artwork`}
+                    src={songArtworkUrl(album.artworkSongId)}
                     alt={album.title}
                     className="h-12 w-12 shrink-0 rounded-md object-cover ring-1 ring-white/10"
                     width={48}
@@ -100,18 +113,24 @@ export function ArtistSongsView({
             <h3 className="text-lg font-semibold">Songs</h3>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" data-motion-list>
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+          >
             <table className="w-full table-fixed border-collapse">
               <thead className="bg-zinc-950/60 text-left text-xs uppercase tracking-[0.18em] text-zinc-500">
                 <tr>
-                  <th className="w-[45%] px-5 py-3 font-medium align-middle">Title</th>
-                  <th className="w-[25%] px-5 py-3 font-medium align-middle">Album</th>
-                  <th className="w-[30%] px-5 py-3 font-medium align-middle">Play</th>
+                  <th className="w-[38%] px-5 py-3 font-medium align-middle">Title</th>
+                  <th className="w-[22%] px-5 py-3 font-medium align-middle">Album</th>
+                  <th className="w-[40%] px-5 py-3 font-medium align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {artistSongs.map((song) => (
-                  <tr key={song.id} data-motion-item className="h-[88px] border-t border-zinc-800">
+                {artistSongs.map((song, index) => (
+                  <tr
+                    key={`${song.id}-${index}`}
+                    className="h-[88px] border-t border-zinc-800 ourmusic-animate-fade-up"
+                    style={{ animationDelay: `${index * 16}ms` }}
+                  >
                     <td className="px-5 py-4 align-middle">
                       <div className="flex h-full items-center">
                         <strong className="block truncate text-sm font-medium">{song.title}</strong>
@@ -123,7 +142,18 @@ export function ArtistSongsView({
                       </div>
                     </td>
                     <td className="px-5 py-4 align-middle">
-                      <PlayQueueActions song={song} onPlaySong={onPlaySong} onAddToQueue={onAddToQueue} />
+                      <PlayQueueActions song={song} onPlaySong={onPlaySong} onAddToQueue={onAddToQueue}>
+                        <AddToPlaylistPrompt
+                          song={song}
+                          playlists={playlists}
+                          onAddToPlaylist={onAddToPlaylist}
+                        />
+                        <LikeSongButton
+                          song={song}
+                          isLiked={likedSongIds.has(song.id)}
+                          onToggleLike={onToggleLike}
+                        />
+                      </PlayQueueActions>
                     </td>
                   </tr>
                 ))}

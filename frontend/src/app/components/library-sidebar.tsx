@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
-import { Shuffle, X, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Song, View } from "../music-types";
+import { useEffect, useState } from "react";
+import type { View } from "../music-types";
+import { apiUrl } from "../lib/auth";
 
 type LibraryItem = {
-  id: "songs" | "albums" | "artists" | "adminUsers";
+  id: "home" | "songs" | "albums" | "playlists" | "likedSongs" | "recentlyPlayed" | "mostPlayed" | "artists" | "adminUsers";
   label: string;
   icon: LucideIcon;
 };
@@ -14,15 +14,16 @@ type LibraryItem = {
 type LibrarySidebarProps = {
   view: View;
   libraryItems: LibraryItem[];
-  queue: Song[];
   authUser?: string | null;
+  onViewHome: () => void;
   onViewSongs: () => void;
+  onViewLikedSongs: () => void;
+  onViewRecentlyPlayed: () => void;
+  onViewMostPlayed: () => void;
   onViewAlbums: () => void;
+  onViewPlaylists: () => void;
   onViewArtists: () => void;
   onViewAdminUsers: () => void;
-  onRemoveFromQueue: (index: number) => void;
-  onClearQueue: () => void;
-  onShuffleQueue: () => void;
   onSignOut?: () => void;
   onClose?: () => void;
   isDrawer?: boolean;
@@ -32,23 +33,68 @@ type LibrarySidebarProps = {
 export function LibrarySidebar({
   view,
   libraryItems,
-  queue,
   authUser,
+  onViewHome,
   onViewSongs,
+  onViewLikedSongs,
+  onViewRecentlyPlayed,
+  onViewMostPlayed,
   onViewAlbums,
+  onViewPlaylists,
   onViewArtists,
   onViewAdminUsers,
-  onRemoveFromQueue,
-  onClearQueue,
-  onShuffleQueue,
   onSignOut,
   onClose,
   isDrawer = false,
   className = "",
 }: LibrarySidebarProps) {
+  const [serverStatus, setServerStatus] = useState<"active" | "down">("down");
   const containerClassName = isDrawer
     ? "flex h-full w-full flex-col gap-6 overflow-y-auto bg-zinc-900/95 p-4 backdrop-blur"
-    : "flex shrink-0 flex-col gap-6 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4 backdrop-blur lg:h-full lg:w-[300px] lg:overflow-y-auto";
+    : "flex shrink-0 flex-col gap-6 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-4 backdrop-blur lg:h-full lg:w-[280px] lg:overflow-y-auto";
+
+  useEffect(() => {
+    let isMounted = true;
+    let controller: AbortController | null = null;
+
+    const checkServerStatus = async () => {
+      controller?.abort();
+      controller = new AbortController();
+
+      try {
+        await fetch(apiUrl("/api/auth/me"), {
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (isMounted) {
+          setServerStatus("active");
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (isMounted) {
+          setServerStatus("down");
+        }
+      }
+    };
+
+    const initialTimer = window.setTimeout(() => {
+      void checkServerStatus();
+    }, 0);
+    const interval = window.setInterval(() => {
+      void checkServerStatus();
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+      controller?.abort();
+    };
+  }, []);
 
   return (
     <aside className={`${containerClassName} ${className}`.trim()}>
@@ -84,10 +130,20 @@ export function LibrarySidebar({
               key={item.id}
               type="button"
               onClick={() => {
-                if (item.id === "songs") {
+                if (item.id === "home") {
+                  onViewHome();
+                } else if (item.id === "songs") {
                   onViewSongs();
+                } else if (item.id === "likedSongs") {
+                  onViewLikedSongs();
+                } else if (item.id === "recentlyPlayed") {
+                  onViewRecentlyPlayed();
+                } else if (item.id === "mostPlayed") {
+                  onViewMostPlayed();
                 } else if (item.id === "albums") {
                   onViewAlbums();
+                } else if (item.id === "playlists") {
+                  onViewPlaylists();
                 } else if (item.id === "adminUsers") {
                   onViewAdminUsers();
                 } else {
@@ -111,80 +167,19 @@ export function LibrarySidebar({
         })}
       </nav>
 
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">
-            Up Next
-          </h3>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">{queue.length}</span>
-            <button
-              type="button"
-              onClick={onShuffleQueue}
-              disabled={queue.length < 2}
-              className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Shuffle className="h-3 w-3" />
-              Shuffle
-            </button>
-            <button
-              type="button"
-              onClick={onClearQueue}
-              disabled={queue.length === 0}
-              className="flex items-center gap-1 rounded-full border border-zinc-800 bg-zinc-950/60 px-2.5 py-1 text-[11px] text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Trash2 className="h-3 w-3" />
-              Clear
-            </button>
-          </div>
-        </div>
-
-        {queue.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-5 text-sm text-zinc-500">
-            Queue is empty.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {queue.map((song, index) => (
-              <div
-                key={`${song.id}-${index}`}
-                className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60 p-3"
-              >
-                <Image
-                  src={`http://192.168.1.76:8808/api/songs/${song.id}/artwork`}
-                  alt={song.title}
-                  className="absolute inset-0 h-full w-full object-cover object-center scale-110 blur-xs"
-                  width={500}
-                  height={500}
-                  loading="lazy"
-                  unoptimized
-                />
-                <div className="absolute inset-0 bg-zinc-950/70" />
-
-                <div className="relative z-10 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{song.title}</p>
-                    <p className="truncate text-xs text-zinc-300">{song.artist}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onRemoveFromQueue(index)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white backdrop-blur-md transition hover:border-white/20 hover:bg-white/15"
-                    aria-label={`Remove ${song.title} from queue`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
       {authUser && onSignOut ? (
         <section className="mt-auto rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Account</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Account</p>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/60 px-2.5 py-1 text-[11px] font-medium text-zinc-300">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  serverStatus === "active" ? "bg-emerald-400" : "bg-yellow-400"
+                }`}
+              />
+              {serverStatus === "active" ? "Active" : "Down"}
+            </span>
+          </div>
           <p className="mt-2 truncate text-sm font-medium text-white">{authUser}</p>
           <button
             type="button"

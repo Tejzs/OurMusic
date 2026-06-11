@@ -1,13 +1,15 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
-import type { Song } from "../music-types";
+import type { Playlist, Song } from "../music-types";
 import { SongsGrid } from "./songs-grid";
 
 type SongsViewProps = {
   songs: Song[];
+  title?: string;
+  emptyMessage?: string;
   page: number;
+  totalPages?: number;
   scrollKey: string;
   hasPreviousPage: boolean;
   hasNextPage: boolean;
@@ -16,12 +18,19 @@ type SongsViewProps = {
   onNextPage: () => void;
   onPlaySong: (song: Song) => void;
   onAddToQueue: (song: Song) => void;
-  onViewportMeasure: (size: { width: number; height: number }) => void;
+  playlists: Playlist[];
+  onAddToPlaylist: (song: Song, playlistId: number) => void;
+  likedSongIds: Set<number>;
+  onToggleLike: (song: Song) => void;
+  songBadges?: Map<number, string>;
 };
 
 export function SongsView({
   songs,
+  title = "Songs",
+  emptyMessage = "No songs found on this page.",
   page,
+  totalPages,
   scrollKey,
   hasPreviousPage,
   hasNextPage,
@@ -30,41 +39,21 @@ export function SongsView({
   onNextPage,
   onPlaySong,
   onAddToQueue,
-  onViewportMeasure,
+  playlists,
+  onAddToPlaylist,
+  likedSongIds,
+  onToggleLike,
+  songBadges,
 }: SongsViewProps) {
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const gridAreaRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    const el = gridAreaRef.current;
-    if (!el) {
-      return;
-    }
-
-    const updateSize = () => {
-      const rect = el.getBoundingClientRect();
-      onViewportMeasure({
-        width: rect.width,
-        height: rect.height,
-      });
-    };
-
-    updateSize();
-
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(el);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [onViewportMeasure, scrollKey]);
-
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden lg:h-full">
+    <div className="flex h-full min-h-[420px] flex-col overflow-hidden">
       <div className="shrink-0 mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Songs</h2>
-          <p className="text-sm text-zinc-500">Page {page}</p>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <p className="text-sm text-zinc-500">
+            Page {page}
+            {totalPages ? ` of ${totalPages}` : ""}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -91,20 +80,28 @@ export function SongsView({
       </div>
 
       <div
-        ref={viewportRef}
         data-scroll-key={scrollKey}
-        className="flex min-h-0 flex-1 flex-col overflow-hidden px-0 py-3 lg:overflow-hidden"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-0 py-3"
       >
-        <div ref={gridAreaRef} className="flex min-h-[60vh] flex-1 flex-col">
-          {songs.length === 0 && !isLoading ? (
+        <div className="flex min-h-[60vh] flex-1 flex-col">
+          {songs.length === 0 && isLoading ? (
+            <div className="flex min-h-[320px] flex-1 items-center justify-center rounded-[24px] border border-zinc-800 bg-zinc-950/50 px-6 text-sm text-zinc-400">
+              Loading songs...
+            </div>
+          ) : songs.length === 0 ? (
             <div className="flex min-h-[320px] flex-1 items-center justify-center rounded-[24px] border border-dashed border-zinc-800 bg-zinc-950/50 px-6 text-sm text-zinc-500">
-              No songs found on this page.
+              {emptyMessage}
             </div>
           ) : (
             <SongsGrid
               songs={songs}
+              playlists={playlists}
               onPlaySong={onPlaySong}
               onAddToQueue={onAddToQueue}
+              onAddToPlaylist={onAddToPlaylist}
+              likedSongIds={likedSongIds}
+              onToggleLike={onToggleLike}
+              songBadges={songBadges}
             />
           )}
         </div>

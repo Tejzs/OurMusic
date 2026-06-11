@@ -1,21 +1,24 @@
 import type { NextConfig } from "next";
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://192.168.1.76:8808";
+const apiOrigin = new URL(apiBaseUrl);
+
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["192.168.1.76"],
+  allowedDevOrigins: [apiOrigin.hostname],
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://192.168.1.76:8808/api/:path*",
+        destination: `${apiBaseUrl}/api/:path*`,
       },
     ];
   },
   images: {
     remotePatterns: [
       {
-        protocol: "http",
-        hostname: "192.168.1.76",
-        port: "8808",
+        protocol: apiOrigin.protocol.replace(":", "") as "http" | "https",
+        hostname: apiOrigin.hostname,
+        port: apiOrigin.port,
         pathname: "/api/**",
       },
     ],
