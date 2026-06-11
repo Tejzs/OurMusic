@@ -13,6 +13,7 @@ OurMusic is a self-hosted, Navidrome-style music server with a clean library exp
 - Drop your music files into a local folder and run a quick full library scan
 - Browse songs, albums, artists, and playlists
 - Play music through a built-in player
+- Fetch song lyrics through `lrclib.net`
 - Manage library and queue interactions
 - User authentication and admin views
 
@@ -21,6 +22,7 @@ OurMusic is a self-hosted, Navidrome-style music server with a clean library exp
 - The backend scans audio files, reads their metadata, and stores the library in PostgreSQL.
 - Songs are keyed by file path, so rescans update existing entries instead of creating duplicates.
 - The database keeps track of artists, albums, songs, playlists, users, sessions, likes, and recently played history.
+- Lyrics are fetched from `lrclib.net` for authenticated users when a track has metadata available.
 
 ## Database Logic
 
