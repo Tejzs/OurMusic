@@ -17,13 +17,15 @@ import {
   VolumeX,
 } from "lucide-react";
 import type { RefObject } from "react";
-import type { Song } from "../music-types";
+import type { Playlist, Song } from "../music-types";
 import { apiUrl, songArtworkUrl, songStreamUrl } from "../lib/auth";
+import { AddToPlaylistPrompt } from "./add-to-playlist-prompt";
 
 type RepeatMode = "off" | "one" | "queue";
 
 type PlayerBarProps = {
   currentSong: Song | null;
+  playlists: Playlist[];
   isPlaying: boolean;
   isMuted: boolean;
   volume: number;
@@ -43,6 +45,7 @@ type PlayerBarProps = {
   onTogglePlay: () => void;
   onCycleRepeatMode: () => void;
   onToggleLikeCurrentSong: () => void;
+  onAddToPlaylist: (song: Song, playlistId: number) => void;
   onToggleLyrics: () => void;
   onNextTrack: () => void;
   onSeek: (value: string) => void;
@@ -63,6 +66,7 @@ type PlayerBarProps = {
 
 export function PlayerBar({
   currentSong,
+  playlists,
   isPlaying,
   isMuted,
   volume,
@@ -82,6 +86,7 @@ export function PlayerBar({
   onTogglePlay,
   onCycleRepeatMode,
   onToggleLikeCurrentSong,
+  onAddToPlaylist,
   onToggleLyrics,
   onNextTrack,
   onSeek,
@@ -133,6 +138,13 @@ export function PlayerBar({
                       className={`h-4 w-4 ${isCurrentSongLiked ? "fill-red-400 text-red-400" : ""}`}
                     />
                   </button>
+
+                  <AddToPlaylistPrompt
+                    song={currentSong}
+                    playlists={playlists}
+                    onAddToPlaylist={onAddToPlaylist}
+                    variant="card"
+                  />
 
                   <button
                     type="button"

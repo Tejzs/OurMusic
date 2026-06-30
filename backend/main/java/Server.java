@@ -2,16 +2,15 @@ import config.Properties;
 import io.javalin.Javalin;
 
 import postgresql.Database;
-import routes.AdminRoutes;
-import routes.AlbumRoutes;
-import routes.ArtistRoutes;
-import routes.AuthRoutes;
-import routes.PlaylistRoutes;
-import routes.SongRoutes;
-import routes.UserRoutes;
+import routes.api.AdminRoutes;
+import routes.api.AlbumRoutes;
+import routes.api.ArtistRoutes;
+import routes.api.AuthRoutes;
+import routes.api.PlaylistRoutes;
+import routes.api.SongRoutes;
+import routes.api.UserRoutes;
 
 public class Server {
-
     public static void main(String[] args) throws Exception {
         Properties.loadConfigurations("backend/main/java/application.properties");
         Database.setup();

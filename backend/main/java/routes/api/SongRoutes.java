@@ -1,4 +1,4 @@
-package routes;
+package routes.api;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,15 +10,23 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.google.gson.Gson;
 
+import config.Properties;
 import io.javalin.Javalin;
 import postgresql.Database;
 import scanner.Scanner;
 import scanner.Song;
 
 public class SongRoutes {
+
+    private static final ExecutorService scanExecutor = Executors.newSingleThreadExecutor();
+    private static volatile ScanStatus currentStatus = ScanStatus.IDLE;
+
+
     public static void register(Javalin app) {
         app.get("/api/songs", ctx -> {
             String pattern = ctx.queryParam("search");
@@ -39,8 +47,20 @@ public class SongRoutes {
         });
 
         app.post("/api/library/scan/full", ctx -> {
-            List<Song> songs = Scanner.scanLibrary();
-            ctx.json(Map.of("status", "ok", "message", songs.size()));
+            if (currentStatus == ScanStatus.RUNNING) {
+                ctx.status(409).json(Map.of("error", "Scan already in progress"));
+                return;
+            }
+            currentStatus = ScanStatus.RUNNING;
+            scanExecutor.submit(() -> {
+                try {
+                    Scanner.scanLibrary(Properties.getSongsFolder());
+                    currentStatus = ScanStatus.COMPLETE;
+                } catch (Exception e) {
+                    currentStatus = ScanStatus.FAILED;
+                }
+            });
+            ctx.json(Map.of("status", "ok", "message", "Started"));
         });
 
         app.get("/api/songs/{ID}/stream", ctx -> {

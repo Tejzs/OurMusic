@@ -1,4 +1,4 @@
-package routes;
+package routes.api;
 
 import auth.UpdatePasswordRequest;
 import auth.UpdateUsernameRequest;

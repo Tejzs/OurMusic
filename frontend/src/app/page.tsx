@@ -425,6 +425,7 @@ export default function Home() {
   const [likedSongs, setLikedSongs] = useState<Song[]>([]);
   const [likedSongIds, setLikedSongIds] = useState<Set<number>>(() => new Set());
   const [isLikedSongsLoading, setIsLikedSongsLoading] = useState(false);
+  const [refreshPlaylistSongsToken, setRefreshPlaylistSongsToken] = useState(0);
   const [recentlyPlayedSongs, setRecentlyPlayedSongs] = useState<Song[]>([]);
   const [recentlyPlayedPage, setRecentlyPlayedPage] = useState(1);
   const [hasNextRecentlyPlayedPage, setHasNextRecentlyPlayedPage] = useState(false);
@@ -1521,7 +1522,7 @@ export default function Home() {
     playNext();
   }
 
-  function handleAudioFailure() {
+  function handleAudioError() {
     if (!isPlaying || currentSongRef.current === null) {
       return;
     }
@@ -1533,6 +1534,12 @@ export default function Home() {
     playbackRetryRef.current += 1;
     restoredPlaybackPositionRef.current = progress;
     setPlayNonce((n) => n + 1);
+  }
+
+  function handleAudioStalled() {
+    // `stalled` is a buffering signal, not necessarily a fatal stream error.
+    // Let the browser recover naturally instead of reloading the source and
+    // causing the current track to restart.
   }
 
   function handleSeek(value: string) {
@@ -1608,6 +1615,11 @@ export default function Home() {
 
     if (response.status === 401 || response.status === 403) {
       handleSignOut();
+      return;
+    }
+
+    if (response.ok) {
+      setRefreshPlaylistSongsToken((current) => current + 1);
     }
   }, [handleSignOut]);
 
@@ -1791,6 +1803,7 @@ export default function Home() {
                 setPattern(value);
               }}
               onFullScan={handleFullScan}
+              showScanButton={authIsAdmin}
             />
           </div>
 
@@ -1839,6 +1852,7 @@ export default function Home() {
               onLoadMoreArtists={handleLoadMoreArtists}
               onUnauthorized={handleSignOut}
               onPlaylistsChanged={refreshPlaylists}
+              refreshPlaylistSongsToken={refreshPlaylistSongsToken}
               onPlaySong={playSong}
               onAddToQueue={addToQueue}
               onAddToPlaylist={handleAddSongToPlaylist}
@@ -1881,6 +1895,7 @@ export default function Home() {
 
           <PlayerBar
             currentSong={currentSong}
+            playlists={playlists}
             isPlaying={isPlaying}
             isMuted={isMuted}
             volume={volume}
@@ -1904,6 +1919,7 @@ export default function Home() {
                 void handleToggleLike(currentSong);
               }
             }}
+            onAddToPlaylist={handleAddSongToPlaylist}
             onToggleLyrics={() => setIsLyricsOpen((current) => !current)}
             onNextTrack={handleNextTrack}
             onSeek={handleSeek}
@@ -1941,8 +1957,8 @@ export default function Home() {
               setVolume(nextVolume);
               setIsMuted(nextMuted);
             }}
-            onError={handleAudioFailure}
-            onStalled={handleAudioFailure}
+            onError={handleAudioError}
+            onStalled={handleAudioStalled}
           />
         </section>
 

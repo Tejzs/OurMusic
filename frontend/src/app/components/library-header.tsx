@@ -6,12 +6,14 @@ type LibraryHeaderProps = {
   pattern: string;
   onPatternChange: (value: string) => void;
   onFullScan: () => void;
+  showScanButton?: boolean;
 };
 
 export function LibraryHeader({
   pattern,
   onPatternChange,
   onFullScan,
+  showScanButton = true,
 }: LibraryHeaderProps) {
   return (
     <div className="mb-6 shrink-0 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -32,14 +34,16 @@ export function LibraryHeader({
           />
         </div>
 
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-2xl border border-zinc-800/90 bg-zinc-900/85 px-5 py-3 font-medium text-white shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] transition hover:border-zinc-700 hover:bg-zinc-800"
-          onClick={onFullScan}
-        >
-          <ScanSearch className="h-4 w-4" />
-          Scan
-        </button>
+        {showScanButton ? (
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-2xl border border-zinc-800/90 bg-zinc-900/85 px-5 py-3 font-medium text-white shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset] transition hover:border-zinc-700 hover:bg-zinc-800"
+            onClick={onFullScan}
+          >
+            <ScanSearch className="h-4 w-4" />
+            Scan
+          </button>
+        ) : null}
       </div>
     </div>
   );

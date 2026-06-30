@@ -1,4 +1,4 @@
-package routes;
+package routes.api;
 
 import com.google.gson.Gson;
 import io.javalin.Javalin;

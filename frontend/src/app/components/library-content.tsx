@@ -54,6 +54,7 @@ type LibraryContentProps = {
   onLoadMoreArtists: () => void;
   onUnauthorized: () => void;
   onPlaylistsChanged: () => void;
+  refreshPlaylistSongsToken: number;
   onPlaySong: (song: Song) => void;
   onAddToQueue: (song: Song) => void;
   onAddToPlaylist: (song: Song, playlistId: number) => void;
@@ -125,6 +126,7 @@ export function LibraryContent({
   onLoadMoreArtists,
   onUnauthorized,
   onPlaylistsChanged,
+  refreshPlaylistSongsToken,
   onPlaySong,
   onAddToQueue,
   onAddToPlaylist,
@@ -325,6 +327,7 @@ export function LibraryContent({
       <PlaylistsView
         onUnauthorized={onUnauthorized}
         onPlaylistsChanged={onPlaylistsChanged}
+        refreshSongsToken={refreshPlaylistSongsToken}
         onPlaySong={onPlaySong}
         onAddToQueue={onAddToQueue}
         likedSongIds={likedSongIds}

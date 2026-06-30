@@ -1,4 +1,4 @@
-package routes;
+package routes.api;
 
 import auth.User;
 import com.google.gson.Gson;
