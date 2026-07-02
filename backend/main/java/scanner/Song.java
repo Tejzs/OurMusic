@@ -5,6 +5,7 @@ public class Song {
     private String title;
     private String artist;
     private String album;
+    private String genre;
     private int albumId;
     private int duration;
     private transient String filePath;
@@ -12,10 +13,11 @@ public class Song {
     private transient long lastModified;
     private transient String artworkPath;
 
-    public Song(String title, String artist, String album, int albumId, int duration, String filePath, long fileSize, long lastModified, String artworkPath) {
+    public Song(String title, String artist, String album, String genre, int albumId, int duration, String filePath, long fileSize, long lastModified, String artworkPath) {
         this.title = title;
         this.artist = artist;
         this.album = album;
+        this.genre = genre;
         this.albumId = albumId;
         this.duration = duration;
         this.filePath = filePath;
@@ -34,6 +36,10 @@ public class Song {
 
     public String getAlbum() {
         return album;
+    }
+
+    public String getGenre() {
+        return genre;
     }
 
     public int getDuration() {

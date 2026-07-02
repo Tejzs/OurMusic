@@ -40,16 +40,23 @@ public class Scanner {
                 }
 
                 String album = tag != null ? tag.getFirst(FieldKey.ALBUM) : "Unknown Album";
+                String genre = tag != null ? tag.getFirst(FieldKey.GENRE) : null;
                 int albumId = Database.getAlbum(album, Database.getArtist(artists[0].trim()));
+                Artwork artwork = tag != null ? tag.getFirstArtwork() : null;
+                String artworkPath = null;
 
-                try (FileOutputStream fileOutputStream = new FileOutputStream(Properties.getSongsArtworkFolder() + File.separator + Utils.sha256(title).substring(0, 16) + ".jpg")) {
-                    Artwork artwork = tag != null ? tag.getFirstArtwork() : null;
-                    if (artwork != null) {
+                if (artwork != null) {
+                    artworkPath = Properties.getSongsArtworkFolder() + File.separator + Utils.sha256(title).substring(0, 16) + ".jpg";
+                }
+
+                if (artworkPath != null) {
+                    try (FileOutputStream fileOutputStream = new FileOutputStream(artworkPath)) {
                         byte[] b = artwork.getBinaryData();
                         fileOutputStream.write(b);
+                    } catch (Exception e) {
+                        System.out.println(e.getMessage());
+                        artworkPath = null;
                     }
-                } catch (Exception e) {
-                    System.out.println(e.getMessage());
                 }
 
                 int duration = audioFile.getAudioHeader().getTrackLength();
@@ -57,10 +64,11 @@ public class Scanner {
                 long fileSize = audioFile.getFile().length();
                 long lastModified = audioFile.getFile().lastModified();
 
-                Song song = new Song(title, String.join(", ", artists), album, albumId, duration, filePath, fileSize, lastModified, Properties.getSongsArtworkFolder() + File.separator + Utils.sha256(title).substring(0, 16) + ".jpg");
+                Song song = new Song(title, String.join(", ", artists), album, genre, albumId, duration, filePath, fileSize, lastModified, artworkPath);
                 Database.insertSong(song);
                 for (String artist : artists) {
-                    Database.insertSongArtists(song.getId(), Database.getArtist(artist));
+                    int artistId = Database.getArtist(artist.trim());
+                    Database.insertSongArtists(song.getId(), artistId);
                 }
             } catch (Exception e) {
                 System.out.println("Failed to scan: " + file.getAbsolutePath());

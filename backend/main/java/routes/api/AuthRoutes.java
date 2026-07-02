@@ -9,13 +9,18 @@ import auth.RegisterRequest;
 import auth.User;
 import io.javalin.Javalin;
 import postgresql.Database;
+import routes.subsonic.SubsonicTokenSecret;
 
 public class AuthRoutes {
     public static void register(Javalin app) {
         app.post("/api/auth/register", ctx -> {
             RegisterRequest req = ctx.bodyAsClass(RegisterRequest.class);
             String passwordHash = BCrypt.hashpw(req.getPassword(), BCrypt.gensalt());
-            int resp = Database.registerUser(req.getUsername(), passwordHash);
+            int resp = Database.registerUser(
+                    req.getUsername(),
+                    passwordHash,
+                    SubsonicTokenSecret.encrypt(req.getPassword())
+            );
             if (resp > 0) {
                 ctx.status(201).json(Map.of("message", "success"));
                 return;
@@ -48,6 +53,7 @@ public class AuthRoutes {
 
             String token = UUID.randomUUID().toString();
             Database.createSessionToken(user.getId(), token);
+            Database.updateSubsonicTokenSecret(user.getId(), SubsonicTokenSecret.encrypt(req.getPassword()));
 
             ctx.cookie("ourmusic_session", token);
             ctx.json(Map.of("message", "success"));

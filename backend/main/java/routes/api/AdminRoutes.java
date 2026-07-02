@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import io.javalin.Javalin;
 import org.mindrot.jbcrypt.BCrypt;
 import postgresql.Database;
+import routes.subsonic.SubsonicTokenSecret;
 
 import java.util.List;
 import java.util.Map;
@@ -146,7 +147,11 @@ public class AdminRoutes {
                 return;
             }
 
-            boolean ok = Database.changePassword(Integer.valueOf(ID), passwordHash);
+            boolean ok = Database.changePassword(
+                    Integer.valueOf(ID),
+                    passwordHash,
+                    SubsonicTokenSecret.encrypt(req.getPassword())
+            );
 
             if (!ok) {
                 ctx.status(500).json(Map.of("message", "update failed"));
