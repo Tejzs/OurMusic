@@ -17,6 +17,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 public final class SubsonicMediaRoutes {
+    private static final String PLAYLIST_COVER_ART_PREFIX = "playlist:";
+
     private SubsonicMediaRoutes() {
     }
 
@@ -235,6 +237,35 @@ public final class SubsonicMediaRoutes {
                 }
             }
 
+            Integer playlistId = parsePlaylistCoverArtId(rawRequestedId);
+            if (playlistId != null) {
+                String playlistCoverArtPath = Database.getPlaylistCoverartPath(playlistId);
+                if (isBlank(playlistCoverArtPath)) {
+                    SubsonicResponses.writeError(ctx, 404, 70, "Cover art not found.");
+                    return;
+                }
+
+                File file = new File(playlistCoverArtPath);
+                if (!file.exists()) {
+                    SubsonicResponses.writeError(ctx, 404, 70, "Cover art file not found.");
+                    return;
+                }
+
+                ctx.contentType(probeMimeType(file.toPath()));
+                ctx.header("Content-Length", String.valueOf(file.length()));
+                try {
+                    ctx.result(new FileInputStream(file));
+                } catch (IOException e) {
+                    SubsonicResponses.writeError(ctx, 500, 0, "Unable to open cover art file.");
+                }
+                return;
+            }
+
+            if (SubsonicIds.parsePlaylistId(rawRequestedId) != null && !rawRequestedId.matches("\\d+")) {
+                SubsonicResponses.writeError(ctx, 404, 70, "Cover art not found.");
+                return;
+            }
+
             Integer requestedId = parseNumericId(rawRequestedId);
             if (requestedId == null) {
                 SubsonicResponses.writeError(ctx, 400, 10, "Invalid numeric parameter.");
@@ -281,6 +312,14 @@ public final class SubsonicMediaRoutes {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private static Integer parsePlaylistCoverArtId(String rawValue) {
+        if (isBlank(rawValue) || !rawValue.startsWith(PLAYLIST_COVER_ART_PREFIX)) {
+            return null;
+        }
+
+        return parseNumericId(rawValue.substring(PLAYLIST_COVER_ART_PREFIX.length()));
     }
 
     private static Integer parseRequiredId(io.javalin.http.Context ctx, String name) {

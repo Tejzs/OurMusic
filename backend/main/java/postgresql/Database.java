@@ -2243,6 +2243,7 @@ public class Database {
         boolean isPublic = rs.getBoolean("is_public");
         int ownerId = hasColumn(rs, "owner_id") ? rs.getInt("owner_id") : requesterUserId;
         boolean readonly = !requesterIsAdmin && ownerId != requesterUserId;
+        String coverArt = hasCover ? "playlist:" + playlistId : "";
 
         return new PlaylistInfo(
                 playlistId,
@@ -2254,7 +2255,7 @@ public class Database {
                 formatTimestamp(rs.getObject("changed_at", OffsetDateTime.class)),
                 rs.getInt("song_count"),
                 rs.getInt("total_duration"),
-                hasCover ? String.valueOf(playlistId) : "",
+                coverArt,
                 readonly
         );
     }

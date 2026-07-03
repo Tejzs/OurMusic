@@ -855,7 +855,7 @@ public final class SubsonicResponses {
 
     private static Map<String, Object> toPlaylistPayload(PlaylistInfo playlist) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("id", id(playlist.getId()));
+        payload.put("id", SubsonicIds.playlistId(playlist.getId()));
         payload.put("name", sanitizeText(playlist.getName()));
         putIfNotBlank(payload, "comment", sanitizeText(playlist.getComment()));
         payload.put("owner", sanitizeText(playlist.getOwner()));
@@ -934,7 +934,7 @@ public final class SubsonicResponses {
 
     private static void appendPlaylistElement(StringBuilder xml, PlaylistInfo playlist, boolean includeEntries, List<scanner.Song> songs) {
         xml.append("<playlist");
-        xml.append(" id=\"").append(playlist.getId()).append("\"");
+        xml.append(" id=\"").append(escapeXml(SubsonicIds.playlistId(playlist.getId()))).append("\"");
         xml.append(" name=\"").append(escapeXml(playlist.getName())).append("\"");
         appendXmlAttribute(xml, "comment", sanitizeText(playlist.getComment()));
         xml.append(" owner=\"").append(escapeXml(playlist.getOwner())).append("\"");

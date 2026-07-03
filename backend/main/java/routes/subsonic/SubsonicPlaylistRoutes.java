@@ -90,7 +90,7 @@ public final class SubsonicPlaylistRoutes {
                 return;
             }
 
-            Integer playlistId = parseInteger(playlistIdParam);
+            Integer playlistId = SubsonicIds.parsePlaylistId(playlistIdParam);
             if (playlistId == null) {
                 SubsonicResponses.writeError(ctx, 400, 10, "Invalid numeric parameter.");
                 return;
@@ -208,7 +208,7 @@ public final class SubsonicPlaylistRoutes {
             return null;
         }
 
-        Integer value = parseInteger(rawValue);
+        Integer value = SubsonicIds.parsePlaylistId(rawValue);
         if (value == null) {
             SubsonicResponses.writeError(ctx, 400, 10, "Invalid numeric parameter.");
             return null;
