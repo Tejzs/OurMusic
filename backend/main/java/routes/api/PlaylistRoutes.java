@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.google.gson.Gson;
@@ -255,14 +256,20 @@ public class PlaylistRoutes {
             }
 
             try {
-                Files.copy(file.content(), Path.of(Properties.getSongsArtworkFolder(), playlistId + ".jpg"),
-                        StandardCopyOption.REPLACE_EXISTING);
+                Path playlistArtworkFolder = Path.of(Properties.getSongsArtworkFolder(), "playlists");
+                Files.createDirectories(playlistArtworkFolder);
 
-                Database.setPlaylistCoverart(Integer.valueOf(playlistId),
-                        Properties.getSongsArtworkFolder() + File.separator + playlistId + ".jpg");
+                String extension = playlistCoverExtension(file);
+                Path coverPath = playlistArtworkFolder.resolve(playlistId + extension);
+                Files.copy(file.content(), coverPath, StandardCopyOption.REPLACE_EXISTING);
+                deleteLegacyPlaylistCoverFiles(playlistId, coverPath);
+
+                Database.setPlaylistCoverart(Integer.valueOf(playlistId), coverPath.toString());
             } catch (Exception e) {
                 System.out.println("Playlist Cover Art Failed To Save");
                 System.out.println(e.getMessage());
+                ctx.status(500).json(Map.of("message", "failed to save playlist cover"));
+                return;
             }
 
             ctx.status(200).json(Map.of("message", "success"));
@@ -304,7 +311,12 @@ public class PlaylistRoutes {
                 return;
             }
 
-            ctx.contentType("image/jpg");
+            String contentType = null;
+            try {
+                contentType = Files.probeContentType(file.toPath());
+            } catch (Exception ignored) {
+            }
+            ctx.contentType(contentType != null ? contentType : "image/jpeg");
             ctx.result(new FileInputStream(file));
         });
 
@@ -361,5 +373,58 @@ public class PlaylistRoutes {
                 System.out.println("Unable to read file");
             }
         });
+    }
+
+    private static String playlistCoverExtension(UploadedFile file) {
+        String extension = extensionFromContentType(file.contentType());
+        if (extension != null) {
+            return extension;
+        }
+
+        return extensionFromFilename(file.filename());
+    }
+
+    private static String extensionFromContentType(String contentType) {
+        if (contentType == null) {
+            return null;
+        }
+
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            default -> null;
+        };
+    }
+
+    private static String extensionFromFilename(String filename) {
+        if (filename == null) {
+            return ".jpg";
+        }
+
+        String lowerFilename = filename.toLowerCase(Locale.ROOT);
+        if (lowerFilename.endsWith(".png")) {
+            return ".png";
+        }
+        if (lowerFilename.endsWith(".webp")) {
+            return ".webp";
+        }
+        if (lowerFilename.endsWith(".gif")) {
+            return ".gif";
+        }
+        return ".jpg";
+    }
+
+    private static void deleteLegacyPlaylistCoverFiles(String playlistId, Path currentCoverPath) {
+        for (String extension : List.of(".jpg", ".jpeg", ".png", ".webp", ".gif")) {
+            try {
+                Path legacyPath = Path.of(Properties.getSongsArtworkFolder(), playlistId + extension);
+                if (!legacyPath.equals(currentCoverPath)) {
+                    Files.deleteIfExists(legacyPath);
+                }
+            } catch (Exception ignored) {
+            }
+        }
     }
 }

@@ -5,12 +5,14 @@ public class Artist {
     private String name;
     private int albumCount;
     private int songCount;
+    private String imagePath;
     
-    public Artist(int id, String name, int albumCount, int songCount) {
+    public Artist(int id, String name, int albumCount, int songCount, String imagePath) {
         this.id = id;
         this.name = name;
         this.albumCount = albumCount;
         this.songCount = songCount;
+        this.imagePath = imagePath;
     }
 
     public int getId() {
@@ -43,5 +45,13 @@ public class Artist {
 
     public void setSongCount(int songCount) {
         this.songCount = songCount;
+    }
+
+    public String getImagePath() {
+        return imagePath;
+    }
+
+    public void setImagePath(String imagePath) {
+        this.imagePath = imagePath;
     }
 }

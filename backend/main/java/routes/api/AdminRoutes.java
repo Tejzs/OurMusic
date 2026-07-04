@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import io.javalin.Javalin;
 import org.mindrot.jbcrypt.BCrypt;
 import postgresql.Database;
+import routes.subsonic.SubsonicTokenSecret;
 
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,13 @@ public class AdminRoutes {
             List<User> users = Database.getAllUsers();
             Gson gson = new Gson();
             ctx.contentType("application/json");
-            ctx.result(gson.toJson(users));
+            ctx.result(gson.toJson(users.stream()
+                    .map(adminUser -> Map.<String, Object>of(
+                            "id", adminUser.getId(),
+                            "username", adminUser.getUsername(),
+                            "isAdmin", adminUser.isAdmin()
+                    ))
+                    .toList()));
         });
 
         app.delete("/api/admin/users/{ID}", ctx -> {
@@ -146,7 +153,11 @@ public class AdminRoutes {
                 return;
             }
 
-            boolean ok = Database.changePassword(Integer.valueOf(ID), passwordHash);
+            boolean ok = Database.changePassword(
+                    Integer.valueOf(ID),
+                    passwordHash,
+                    SubsonicTokenSecret.encrypt(req.getPassword())
+            );
 
             if (!ok) {
                 ctx.status(500).json(Map.of("message", "update failed"));

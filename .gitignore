@@ -10,7 +10,7 @@ Thumbs.db
 target/
 *.class
 *.log
-backend/main/java/application.properties
+application.properties
 backend/main/resources/artwork/
 
 # Next.js / frontend
@@ -40,3 +40,5 @@ frontend/.env.production.local
 .codex
 graphify-out/
 AGENTS.md
+
+SUBSONIC_VERSION.md

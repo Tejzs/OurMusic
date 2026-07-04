@@ -3,11 +3,16 @@ package postgresql;
 import auth.User;
 import config.Properties;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +21,7 @@ import scanner.Album;
 import scanner.Artist;
 import scanner.MostPlayedSong;
 import scanner.Playlist;
+import scanner.PlaylistInfo;
 import scanner.Song;
 
 public class Database {
@@ -34,10 +40,13 @@ public class Database {
         String artistsTable = """
                 CREATE TABLE IF NOT EXISTS artists (
                     id SERIAL PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL
+                    name TEXT UNIQUE NOT NULL,
+                    image_path TEXT
                 );
                 """;
         connection.prepareStatement(artistsTable).execute();
+        connection.prepareStatement("ALTER TABLE artists ADD COLUMN IF NOT EXISTS image_path TEXT;").execute();
+        connection.prepareStatement("ALTER TABLE artists DROP COLUMN IF EXISTS artwork_song_id;").execute();
 
         String albumsTable = """
                 CREATE TABLE IF NOT EXISTS albums (
@@ -54,16 +63,32 @@ public class Database {
                 CREATE TABLE IF NOT EXISTS songs (
                     id SERIAL PRIMARY KEY,
                     title TEXT,
+                    genre TEXT,
                     album_id INT NOT NULL,
                     duration_seconds INT,
                     file_path TEXT UNIQUE NOT NULL,
                     file_size BIGINT,
                     file_modified_time BIGINT,
                     artwork_path TEXT,
+                    bit_rate INT,
+                    sampling_rate INT,
+                    channel_count INT,
+                    bit_depth INT,
+                    year INT,
+                    track_number INT,
+                    disc_number INT,
                     FOREIGN KEY (album_id) REFERENCES albums(id)
                 );
                 """;
         connection.prepareStatement(songsTable).execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS genre TEXT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS bit_rate INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS sampling_rate INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS channel_count INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS bit_depth INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS year INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS track_number INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS disc_number INT;").execute();
 
         String songArtistsTable = """
                 CREATE TABLE IF NOT EXISTS song_artists (
@@ -81,10 +106,12 @@ public class Database {
                     id SERIAL PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
+                    subsonic_token_secret TEXT,
                     is_admin BOOLEAN DEFAULT FALSE
                 );
                 """;
         connection.prepareStatement(usersTable).execute();
+        connection.prepareStatement("ALTER TABLE users ADD COLUMN IF NOT EXISTS subsonic_token_secret TEXT;").execute();
 
         String sessionsTable = """
                 CREATE TABLE IF NOT EXISTS sessions (
@@ -97,16 +124,25 @@ public class Database {
                 """;
         connection.prepareStatement(sessionsTable).execute();
 
+
         String playlistsTable = """
                 CREATE TABLE IF NOT EXISTS playlists (
                     id SERIAL PRIMARY KEY,
                     user_id INT NOT NULL,
                     name TEXT NOT NULL,
+                    comment TEXT DEFAULT '',
+                    is_public BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    changed_at TIMESTAMPTZ DEFAULT NOW(),
                     cover_path TEXT,
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 );
                 """;
         connection.prepareStatement(playlistsTable).execute();
+        connection.prepareStatement("ALTER TABLE playlists ADD COLUMN IF NOT EXISTS comment TEXT DEFAULT '';").execute();
+        connection.prepareStatement("ALTER TABLE playlists ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;").execute();
+        connection.prepareStatement("ALTER TABLE playlists ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();").execute();
+        connection.prepareStatement("ALTER TABLE playlists ADD COLUMN IF NOT EXISTS changed_at TIMESTAMPTZ DEFAULT NOW();").execute();
 
         String playlistSongsTable = """
                 CREATE TABLE IF NOT EXISTS playlist_songs (
@@ -143,40 +179,65 @@ public class Database {
                 );
                 """;
         connection.prepareStatement(recentlyPLayedTable).execute();
+
     }
 
     public static void insertSong(Song song) throws SQLException {
         String sql = """
                 INSERT INTO songs (
                     title,
+                    genre,
                     album_id,
                     duration_seconds,
                     file_path,
                     file_size,
                     file_modified_time,
-                    artwork_path
+                    artwork_path,
+                    bit_rate,
+                    sampling_rate,
+                    channel_count,
+                    bit_depth,
+                    year,
+                    track_number,
+                    disc_number
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (file_path)
                 DO UPDATE SET
                     title = EXCLUDED.title,
+                    genre = EXCLUDED.genre,
                     album_id = EXCLUDED.album_id,
                     duration_seconds = EXCLUDED.duration_seconds,
                     file_size = EXCLUDED.file_size,
                     file_modified_time = EXCLUDED.file_modified_time,
-                    artwork_path = EXCLUDED.artwork_path
+                    artwork_path = EXCLUDED.artwork_path,
+                    bit_rate = EXCLUDED.bit_rate,
+                    sampling_rate = EXCLUDED.sampling_rate,
+                    channel_count = EXCLUDED.channel_count,
+                    bit_depth = EXCLUDED.bit_depth,
+                    year = EXCLUDED.year,
+                    track_number = EXCLUDED.track_number,
+                    disc_number = EXCLUDED.disc_number
                 RETURNING id;
                 """;
 
         PreparedStatement stmt = connection.prepareStatement(sql);
 
         stmt.setString(1, song.getTitle());
-        stmt.setInt(2, song.getAlbumId());
-        stmt.setInt(3, song.getDuration());
-        stmt.setString(4, song.getFilePath());
-        stmt.setLong(5, song.getFileSize());
-        stmt.setLong(6, song.getLastModified());
-        stmt.setString(7, song.getArtworkPath());
+        stmt.setString(2, song.getGenre());
+        stmt.setInt(3, song.getAlbumId());
+        stmt.setInt(4, song.getDuration());
+        stmt.setString(5, song.getFilePath());
+        stmt.setLong(6, song.getFileSize());
+        stmt.setLong(7, song.getLastModified());
+        stmt.setString(8, song.getArtworkPath());
+        stmt.setObject(9, song.getBitRate());
+        stmt.setObject(10, song.getSamplingRate());
+        stmt.setObject(11, song.getChannelCount());
+        stmt.setObject(12, song.getBitDepth());
+        stmt.setObject(13, song.getYear());
+        stmt.setObject(14, song.getTrack());
+        stmt.setObject(15, song.getDiscNumber());
 
         ResultSet rs = stmt.executeQuery();
 
@@ -185,11 +246,45 @@ public class Database {
         }
     }
 
+    private static Song mapSong(ResultSet rs) throws SQLException {
+        Song song = new Song(
+                rs.getString("song_title"),
+                rs.getString("artist_name"),
+                rs.getString("album_title"),
+                rs.getString("genre"),
+                rs.getInt("album_id"),
+                rs.getInt("duration_seconds"),
+                rs.getString("file_path"),
+                rs.getLong("file_size"),
+                rs.getLong("file_modified_time"),
+                rs.getString("artwork_path"),
+                nullableInteger(rs, "bit_rate"),
+                nullableInteger(rs, "sampling_rate"),
+                nullableInteger(rs, "channel_count"),
+                nullableInteger(rs, "bit_depth"),
+                nullableInteger(rs, "year"),
+                nullableInteger(rs, "track_number"),
+                nullableInteger(rs, "disc_number")
+        );
+        song.setId(rs.getInt("song_id"));
+        return song;
+    }
+
+    private static Integer nullableInteger(ResultSet rs, String columnName) throws SQLException {
+        if (!hasColumn(rs, columnName)) {
+            return null;
+        }
+
+        int value = rs.getInt(columnName);
+        return rs.wasNull() ? null : value;
+    }
+
     public static Song getSong(int id) {
         String sql = """
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -197,7 +292,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -213,8 +315,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 return song;
             }
         } catch (Exception e) {
@@ -225,12 +326,21 @@ public class Database {
     }
 
     public static List<Song> search(String pattern) {
+        return searchSongs(pattern, 20);
+    }
+
+    public static List<Song> searchSongs(String pattern, int limit) {
+        return searchSongs(pattern, limit, 0);
+    }
+
+    public static List<Song> searchSongs(String pattern, int limit, int offset) {
         List<Song> songs = new ArrayList();
 
         String sql = """
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -238,7 +348,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -253,20 +370,26 @@ public class Database {
                    )
                 GROUP BY songs.id, albums.id;
                 """;
+        String limitedSql = limit > 0
+                ? sql.replace("GROUP BY songs.id, albums.id;", "GROUP BY songs.id, albums.id ORDER BY songs.title LIMIT ? OFFSET ?;")
+                : sql.replace("GROUP BY songs.id, albums.id;", "GROUP BY songs.id, albums.id ORDER BY songs.title;");
 
         try {
-            PreparedStatement stmt = connection.prepareStatement(sql);
+            PreparedStatement stmt = connection.prepareStatement(limitedSql);
             String searchPattern = "%" + pattern + "%";
 
             stmt.setString(1, searchPattern);
             stmt.setString(2, searchPattern);
             stmt.setString(3, searchPattern);
+            if (limit > 0) {
+                stmt.setInt(4, limit);
+                stmt.setInt(5, Math.max(0, offset));
+            }
 
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -301,13 +424,20 @@ public class Database {
         return -1;
     }
 
-    public static List<Song> scanSongs(int limit, int offset) {
+
+    public static List<Song> getSongsByGenre(String genre, int limit, int offset) {
+
         List<Song> songs = new ArrayList<>();
+
+        if (genre == null || genre.isBlank()) {
+            return songs;
+        }
 
         String sql = """
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -315,7 +445,234 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
+                FROM songs
+                JOIN albums ON songs.album_id = albums.id
+                JOIN song_artists ON song_artists.song_id = songs.id
+                JOIN artists ON song_artists.artist_id = artists.id
+                WHERE songs.genre IS NOT NULL
+                  AND BTRIM(songs.genre) <> ''
+                  AND LOWER(BTRIM(songs.genre)) = LOWER(BTRIM(?))
+                GROUP BY songs.id, albums.id
+                ORDER BY albums.title, songs.title
+                LIMIT ?
+                OFFSET ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, genre);
+            stmt.setInt(2, limit);
+            stmt.setInt(3, offset);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Song song = mapSong(rs);
+                songs.add(song);
+            }
+        } catch (Exception e) {
+            System.out.println("Get songs by genre failed");
+            System.out.println(e.getMessage());
+        }
+
+        return songs;
+    }
+
+    public static List<Song> getRandomSongs(int limit, String genre) {
+        List<Song> songs = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    songs.id AS song_id,
+                    songs.title AS song_title,
+                    songs.genre AS genre,
+                    STRING_AGG(artists.name, ', ') AS artist_name,
+                    songs.album_id AS album_id,
+                    albums.title AS album_title,
+                    songs.duration_seconds AS duration_seconds,
+                    songs.file_path AS file_path,
+                    songs.file_size AS file_size,
+                    songs.file_modified_time AS file_modified_time,
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
+                FROM songs
+                JOIN albums ON songs.album_id = albums.id
+                JOIN song_artists ON song_artists.song_id = songs.id
+                JOIN artists ON song_artists.artist_id = artists.id
+                WHERE (? IS NULL OR (
+                    songs.genre IS NOT NULL
+                    AND BTRIM(songs.genre) <> ''
+                    AND LOWER(BTRIM(songs.genre)) = LOWER(BTRIM(?))
+                ))
+                GROUP BY songs.id, albums.id
+                ORDER BY RANDOM()
+                LIMIT ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            String normalizedGenre = genre == null || genre.isBlank() ? null : genre;
+            stmt.setString(1, normalizedGenre);
+            stmt.setString(2, normalizedGenre);
+            stmt.setInt(3, limit);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Song song = mapSong(rs);
+                songs.add(song);
+            }
+        } catch (Exception e) {
+            System.out.println("Get random songs failed");
+            System.out.println(e.getMessage());
+        }
+
+        return songs;
+    }
+
+    public static List<Artist> searchArtists(String pattern, int limit) {
+        return searchArtists(pattern, limit, 0);
+    }
+
+    public static List<Artist> searchArtists(String pattern, int limit, int offset) {
+        List<Artist> artists = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    artists.id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT albums.id) AS album_count,
+                    COUNT(DISTINCT song_artists.song_id) AS song_count,
+                    artists.image_path AS image_path
+                FROM artists
+                LEFT JOIN albums ON albums.artist_id = artists.id
+                LEFT JOIN song_artists ON song_artists.artist_id = artists.id
+                WHERE artists.name ILIKE ?
+                GROUP BY artists.id, artists.name, artists.image_path
+                ORDER BY artists.name
+                LIMIT ?
+                OFFSET ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, "%" + pattern + "%");
+            stmt.setInt(2, Math.max(0, limit));
+            stmt.setInt(3, Math.max(0, offset));
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                artists.add(new Artist(
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("album_count"),
+                        rs.getInt("song_count"),
+                        rs.getString("image_path")
+                ));
+            }
+            return artists;
+        } catch (Exception e) {
+            System.out.println("Artist search failed: " + pattern);
+            System.out.println(e.getMessage());
+        }
+
+        return artists;
+    }
+
+    public static List<Album> searchAlbums(String pattern, int limit) {
+        return searchAlbums(pattern, limit, 0);
+    }
+
+    public static List<Album> searchAlbums(String pattern, int limit, int offset) {
+        List<Album> albums = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    albums.id AS album_id,
+                    albums.title AS album_title,
+                    albums.artist_id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT songs.id) AS song_count,
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id
+                FROM albums
+                JOIN artists ON albums.artist_id = artists.id
+                LEFT JOIN songs ON songs.album_id = albums.id
+                WHERE albums.title ILIKE ? OR artists.name ILIKE ?
+                GROUP BY albums.id, albums.title, albums.artist_id, artists.name
+                ORDER BY albums.title, artists.name
+                LIMIT ?
+                OFFSET ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            String searchPattern = "%" + pattern + "%";
+            stmt.setString(1, searchPattern);
+            stmt.setString(2, searchPattern);
+            stmt.setInt(3, Math.max(0, limit));
+            stmt.setInt(4, Math.max(0, offset));
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                albums.add(new Album(
+                        rs.getInt("album_id"),
+                        rs.getString("album_title"),
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("song_count"),
+                        rs.getInt("artwork_song_id")
+                ));
+            }
+            return albums;
+        } catch (Exception e) {
+            System.out.println("Album search failed: " + pattern);
+            System.out.println(e.getMessage());
+        }
+
+        return albums;
+    }
+
+    public static List<Song> scanSongs(int limit, int offset) {
+        List<Song> songs = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    songs.id AS song_id,
+                    songs.title AS song_title,
+                    songs.genre AS genre,
+                    STRING_AGG(artists.name, ', ') AS artist_name,
+                    songs.album_id AS album_id,
+                    albums.title AS album_title,
+                    songs.duration_seconds AS duration_seconds,
+                    songs.file_path AS file_path,
+                    songs.file_size AS file_size,
+                    songs.file_modified_time AS file_modified_time,
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -334,9 +691,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -367,6 +722,27 @@ public class Database {
             System.out.println(e.getMessage());
         }
         return -1;
+    }
+
+    public static void updateArtistImagePath(int artistId, String imagePath) {
+        if (artistId <= 0 || imagePath == null || imagePath.isBlank()) {
+            return;
+        }
+
+        String sql = """
+                UPDATE artists
+                SET image_path = ?
+                WHERE id = ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, imagePath);
+            stmt.setInt(2, artistId);
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
 
     public static int getAlbum(String title, int artistId) {
@@ -401,7 +777,9 @@ public class Database {
                     albums.artist_id AS artist_id,
                     artists.name AS artist_name,
                     COUNT(songs.id) AS song_count,
-                    MIN(songs.id) AS artwork_song_id
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id
                 FROM albums
                 JOIN artists ON albums.artist_id = artists.id
                 LEFT JOIN songs ON songs.album_id = albums.id
@@ -431,6 +809,206 @@ public class Database {
         return albums;
     }
 
+    public static List<Album> getAlbumList(String type, int limit, int offset, int userId) {
+        return getAlbumList(type, limit, offset, userId, null, null, null);
+    }
+
+    public static List<Album> getAlbumList(String type, int limit, int offset, int userId, String genre, Integer fromYear, Integer toYear) {
+        List<Album> albums = new ArrayList<>();
+
+        String orderBy;
+        boolean requiresUser = false;
+        String whereClause = "";
+
+        switch (type) {
+            case "alphabeticalByName" -> orderBy = "albums.title ASC, artists.name ASC";
+            case "alphabeticalByArtist" -> orderBy = "artists.name ASC, albums.title ASC";
+            case "byGenre" -> {
+                if (genre == null || genre.isBlank()) {
+                    return albums;
+                }
+                orderBy = "albums.title ASC, artists.name ASC";
+                whereClause = """
+                        WHERE EXISTS (
+                            SELECT 1
+                            FROM songs genre_songs
+                            WHERE genre_songs.album_id = albums.id
+                              AND genre_songs.genre IS NOT NULL
+                              AND BTRIM(genre_songs.genre) <> ''
+                              AND LOWER(BTRIM(genre_songs.genre)) = LOWER(BTRIM(?))
+                        )
+                        """;
+            }
+            case "byYear" -> orderBy = "albums.title ASC, artists.name ASC";
+            case "newest" -> orderBy = "MAX(songs.file_modified_time) DESC NULLS LAST, albums.id DESC";
+            case "random" -> orderBy = "RANDOM()";
+            case "recent" -> {
+                orderBy = "MAX(recently_played.played_at) DESC NULLS LAST, albums.id DESC";
+                requiresUser = true;
+            }
+            case "frequent" -> {
+                orderBy = "COUNT(recently_played.id) DESC, albums.title ASC";
+                requiresUser = true;
+            }
+            case "starred" -> {
+                return getStarredAlbums(userId, limit, offset);
+            }
+            default -> {
+                return albums;
+            }
+        }
+
+        String recentlyPlayedJoin = requiresUser
+                ? "LEFT JOIN recently_played ON recently_played.song_id = songs.id AND recently_played.user_id = ?"
+                : "";
+
+        String sql = """
+                SELECT
+                    albums.id AS album_id,
+                    albums.title AS album_title,
+                    albums.artist_id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT songs.id) AS song_count,
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id
+                FROM albums
+                JOIN artists ON albums.artist_id = artists.id
+                LEFT JOIN songs ON songs.album_id = albums.id
+                %s
+                %s
+                GROUP BY albums.id, albums.title, albums.artist_id, artists.name
+                ORDER BY %s
+                LIMIT ?
+                OFFSET ?;
+                """.formatted(recentlyPlayedJoin, whereClause, orderBy);
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            int parameterIndex = 1;
+
+            if (requiresUser) {
+                stmt.setInt(parameterIndex, userId);
+                parameterIndex += 1;
+            }
+
+            if ("byGenre".equals(type)) {
+                stmt.setString(parameterIndex, genre);
+                parameterIndex += 1;
+            }
+
+            stmt.setInt(parameterIndex, limit);
+            stmt.setInt(parameterIndex + 1, offset);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Album album = new Album(
+                        rs.getInt("album_id"),
+                        rs.getString("album_title"),
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("song_count"),
+                        rs.getInt("artwork_song_id")
+                );
+
+                albums.add(album);
+            }
+            return albums;
+        } catch (Exception e) {
+            System.out.println("Album list failed");
+            System.out.println(e.getMessage());
+        }
+
+        return albums;
+    }
+
+    public static List<Map<String, Object>> getGenres() {
+        List<Map<String, Object>> genres = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    MIN(BTRIM(genre)) AS value,
+                    COUNT(DISTINCT id) AS song_count,
+                    COUNT(DISTINCT album_id) AS album_count
+                FROM songs
+                WHERE genre IS NOT NULL
+                  AND BTRIM(genre) <> ''
+                GROUP BY LOWER(BTRIM(genre))
+                ORDER BY LOWER(BTRIM(genre));
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                genres.add(Map.of(
+                        "value", rs.getString("value"),
+                        "songCount", rs.getInt("song_count"),
+                        "albumCount", rs.getInt("album_count")
+                ));
+            }
+        } catch (Exception e) {
+            System.out.println("Get genres failed");
+            System.out.println(e.getMessage());
+        }
+
+        return genres;
+    }
+
+    public static List<Album> getStarredAlbums(int userId, int limit, int offset) {
+        List<Album> albums = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    albums.id AS album_id,
+                    albums.title AS album_title,
+                    albums.artist_id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT songs.id) AS song_count,
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id,
+                    MAX(liked_songs.liked_at) AS liked_at
+                FROM liked_songs
+                JOIN songs liked_song ON liked_song.id = liked_songs.song_id
+                JOIN albums ON liked_song.album_id = albums.id
+                JOIN artists ON albums.artist_id = artists.id
+                LEFT JOIN songs ON songs.album_id = albums.id
+                WHERE liked_songs.user_id = ?
+                GROUP BY albums.id, albums.title, albums.artist_id, artists.name
+                ORDER BY liked_at DESC, albums.title
+                LIMIT ?
+                OFFSET ?;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            stmt.setInt(2, limit);
+            stmt.setInt(3, offset);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                albums.add(new Album(
+                        rs.getInt("album_id"),
+                        rs.getString("album_title"),
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("song_count"),
+                        rs.getInt("artwork_song_id")
+                ));
+            }
+        } catch (Exception e) {
+            System.out.println("Get starred albums failed");
+            System.out.println(e.getMessage());
+        }
+
+        return albums;
+    }
+
     public static List<Song> getAlbumsSongs(int id) {
         List<Song> songs = new ArrayList<>();
 
@@ -438,6 +1016,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -445,7 +1024,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -461,9 +1047,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -482,11 +1066,12 @@ public class Database {
                     artists.id AS artist_id,
                     artists.name AS artist_name,
                     COUNT(DISTINCT albums.id) AS album_count,
-                    COUNT(DISTINCT song_artists.song_id) AS song_count
+                    COUNT(DISTINCT song_artists.song_id) AS song_count,
+                    artists.image_path AS image_path
                 FROM artists
                 LEFT JOIN albums ON albums.artist_id = artists.id
                 LEFT JOIN song_artists ON song_artists.artist_id = artists.id
-                GROUP BY artists.id, artists.name
+                GROUP BY artists.id, artists.name, artists.image_path
                 ORDER BY artists.name
                 LIMIT ?
                 OFFSET ?;
@@ -500,7 +1085,47 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Artist artist = new Artist(rs.getInt("artist_id"), rs.getString("artist_name"), rs.getInt("album_count"), rs.getInt("song_count"));
+                Artist artist = new Artist(rs.getInt("artist_id"), rs.getString("artist_name"), rs.getInt("album_count"), rs.getInt("song_count"), rs.getString("image_path"));
+
+                artists.add(artist);
+            }
+            return artists;
+        } catch (Exception e) {
+            System.out.println("Scan failed");
+            System.out.println(e.getMessage());
+        }
+        return artists;
+    }
+
+    public static List<Artist> getAllArtists() {
+        List<Artist> artists = new ArrayList<>();
+
+        String sql = """
+                SELECT
+                    artists.id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT albums.id) AS album_count,
+                    COUNT(DISTINCT song_artists.song_id) AS song_count,
+                    artists.image_path AS image_path
+                FROM artists
+                LEFT JOIN albums ON albums.artist_id = artists.id
+                LEFT JOIN song_artists ON song_artists.artist_id = artists.id
+                GROUP BY artists.id, artists.name, artists.image_path
+                ORDER BY artists.name;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Artist artist = new Artist(
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("album_count"),
+                        rs.getInt("song_count"),
+                        rs.getString("image_path")
+                );
 
                 artists.add(artist);
             }
@@ -519,6 +1144,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(all_artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -526,7 +1152,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists filter_sa ON filter_sa.song_id = songs.id
@@ -543,8 +1176,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -565,7 +1197,9 @@ public class Database {
                     albums.artist_id AS artist_id,
                     artists.name AS artist_name,
                     COUNT(songs.id) AS song_count,
-                    MIN(songs.id) AS artwork_song_id
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id
                 FROM albums
                 JOIN artists ON albums.artist_id = artists.id
                 LEFT JOIN songs ON songs.album_id = albums.id
@@ -592,6 +1226,84 @@ public class Database {
         return albums;
     }
 
+    public static Artist getArtistById(int id) {
+        String sql = """
+                SELECT
+                    artists.id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(DISTINCT albums.id) AS album_count,
+                    COUNT(DISTINCT song_artists.song_id) AS song_count,
+                    artists.image_path AS image_path
+                FROM artists
+                LEFT JOIN albums ON albums.artist_id = artists.id
+                LEFT JOIN song_artists ON song_artists.artist_id = artists.id
+                WHERE artists.id = ?
+                GROUP BY artists.id, artists.name, artists.image_path;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, id);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return new Artist(
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("album_count"),
+                        rs.getInt("song_count"),
+                        rs.getString("image_path")
+                );
+            }
+        } catch (Exception e) {
+            System.out.println("Artist lookup failed");
+            System.out.println(e.getMessage());
+        }
+
+        return null;
+    }
+
+    public static Album getAlbumById(int id) {
+        String sql = """
+                SELECT
+                    albums.id AS album_id,
+                    albums.title AS album_title,
+                    albums.artist_id AS artist_id,
+                    artists.name AS artist_name,
+                    COUNT(songs.id) AS song_count,
+                    MIN(CASE
+                        WHEN songs.artwork_path IS NOT NULL AND songs.artwork_path <> '' THEN songs.id
+                    END) AS artwork_song_id
+                FROM albums
+                JOIN artists ON albums.artist_id = artists.id
+                LEFT JOIN songs ON songs.album_id = albums.id
+                WHERE albums.id = ?
+                GROUP BY albums.id, albums.title, albums.artist_id, artists.name;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, id);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return new Album(
+                        rs.getInt("album_id"),
+                        rs.getString("album_title"),
+                        rs.getInt("artist_id"),
+                        rs.getString("artist_name"),
+                        rs.getInt("song_count"),
+                        rs.getInt("artwork_song_id")
+                );
+            }
+        } catch (Exception e) {
+            System.out.println("Album lookup failed");
+            System.out.println(e.getMessage());
+        }
+
+        return null;
+    }
+
     public static void insertSongArtists(int songId, int artistId) {
         String sql = """
                 INSERT INTO song_artists (song_id, artist_id)
@@ -612,6 +1324,14 @@ public class Database {
     }
 
     public static int registerUser(String username, String passwordHash) {
+        return registerUser(username, passwordHash, null);
+    }
+
+    public static int registerUser(String username, String passwordHash, String subsonicTokenSecret) {
+        return registerUser(username, passwordHash, subsonicTokenSecret, false);
+    }
+
+    public static int registerUser(String username, String passwordHash, String subsonicTokenSecret, boolean isAdmin) {
         String checkSql = """
                 SELECT id
                 FROM users
@@ -621,9 +1341,11 @@ public class Database {
         String insertSql = """
                 INSERT INTO users (
                     username,
-                    password_hash
+                    password_hash,
+                    subsonic_token_secret,
+                    is_admin
                 )
-                VALUES (?, ?)
+                VALUES (?, ?, ?, ?)
                 RETURNING id;
                 """;
 
@@ -638,6 +1360,8 @@ public class Database {
                 stmt = connection.prepareStatement(insertSql);
                 stmt.setString(1, username);
                 stmt.setString(2, passwordHash);
+                stmt.setString(3, subsonicTokenSecret);
+                stmt.setBoolean(4, isAdmin);
                 rs = stmt.executeQuery();
                 if (rs.next()) {
                     return rs.getInt("id");
@@ -648,6 +1372,21 @@ public class Database {
             System.out.println(e.getMessage());
         }
         return -1; // Failure
+    }
+
+    public static void ensureAdminUser(String username, String passwordHash, String subsonicTokenSecret) {
+        User existingUser = getUserByName(username);
+        if (existingUser != null) {
+            return;
+        }
+
+        int result = registerUser(username, passwordHash, subsonicTokenSecret, true);
+        if (result > 0) {
+            System.out.println("Seeded admin user: " + username);
+            return;
+        }
+
+        System.out.println("Failed to seed admin user: " + username);
     }
 
     public static User getUserByName(String username) {
@@ -743,6 +1482,7 @@ public class Database {
         return null;
     }
 
+
     public static boolean clearSession(String token) {
         String sql = """
                 DELETE FROM sessions
@@ -837,15 +1577,21 @@ public class Database {
     }
 
     public static boolean changePassword(int id, String passwordHash) {
+        return changePassword(id, passwordHash, null);
+    }
+
+    public static boolean changePassword(int id, String passwordHash, String subsonicTokenSecret) {
         String sql = """
                 UPDATE users
-                SET password_hash = ?
+                SET password_hash = ?,
+                    subsonic_token_secret = COALESCE(?, subsonic_token_secret)
                 WHERE id = ?;
                 """;
         try {
             PreparedStatement stmt = connection.prepareStatement(sql);
             stmt.setString(1, passwordHash);
-            stmt.setInt(2, id);
+            stmt.setString(2, subsonicTokenSecret);
+            stmt.setInt(3, id);
             int row = stmt.executeUpdate();
             return row > 0;
         } catch (Exception e) {
@@ -855,19 +1601,46 @@ public class Database {
         return false;
     }
 
+    public static boolean changeAdminRole(int id, boolean isAdmin) {
+        String sql = """
+                UPDATE users
+                SET is_admin = ?
+                WHERE id = ?;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setBoolean(1, isAdmin);
+            stmt.setInt(2, id);
+            int row = stmt.executeUpdate();
+            return row > 0;
+        } catch (Exception e) {
+            System.out.println("Update admin role failed");
+            System.out.println(e.getMessage());
+        }
+        return false;
+    }
+
     public static int createPlaylist(int userId, String playlistName) {
+        return createPlaylist(userId, playlistName, "", false);
+    }
+
+    public static int createPlaylist(int userId, String playlistName, String comment, boolean isPublic) {
         String sql = """
                 INSERT INTO playlists (
                     user_id,
-                    name
+                    name,
+                    comment,
+                    is_public
                 )
-                VALUES (?, ?)
+                VALUES (?, ?, ?, ?)
                 RETURNING id;
                 """;
         try {
             PreparedStatement stmt = connection.prepareStatement(sql);
             stmt.setInt(1, userId);
             stmt.setString(2, playlistName);
+            stmt.setString(3, comment);
+            stmt.setBoolean(4, isPublic);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getInt("id");
@@ -885,7 +1658,7 @@ public class Database {
                 SELECT
                     id,
                     name,
-                    cover_path IS NOT NULL AS has_cover
+                    cover_path
                 FROM playlists
                 WHERE user_id = ?
                 ORDER BY name;
@@ -895,7 +1668,7 @@ public class Database {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Playlist playlist = new Playlist(rs.getInt("id"), rs.getString("name"), rs.getBoolean("has_cover"));
+                Playlist playlist = new Playlist(rs.getInt("id"), rs.getString("name"), hasUsablePlaylistCoverPath(rs.getString("cover_path")));
                 playlists.add(playlist);
             }
         } catch (Exception e) {
@@ -903,6 +1676,86 @@ public class Database {
             System.out.println(e.getMessage());
         }
         return playlists;
+    }
+
+    public static List<PlaylistInfo> getPlaylistInfos(int userId, boolean isAdmin) {
+        List<PlaylistInfo> playlists = new ArrayList<>();
+        String sql = """
+                SELECT
+                    playlists.id AS playlist_id,
+                    playlists.name AS playlist_name,
+                    COALESCE(playlists.comment, '') AS playlist_comment,
+                    users.username AS owner_username,
+                    playlists.is_public AS is_public,
+                    playlists.created_at AS created_at,
+                    playlists.changed_at AS changed_at,
+                    COUNT(DISTINCT playlist_songs.song_id) AS song_count,
+                    COALESCE(SUM(DISTINCT songs.duration_seconds) FILTER (WHERE songs.id IS NOT NULL), 0) AS total_duration,
+                    playlists.cover_path AS cover_path
+                FROM playlists
+                JOIN users ON users.id = playlists.user_id
+                LEFT JOIN playlist_songs ON playlist_songs.playlist_id = playlists.id
+                LEFT JOIN songs ON songs.id = playlist_songs.song_id
+                WHERE playlists.user_id = ?
+                GROUP BY playlists.id, users.username
+                ORDER BY playlists.name;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                playlists.add(mapPlaylistInfo(rs, isAdmin, userId));
+            }
+        } catch (Exception e) {
+            System.out.println("Get playlist infos failed");
+            System.out.println(e.getMessage());
+        }
+
+        return playlists;
+    }
+
+    public static PlaylistInfo getPlaylistInfo(int playlistId, int requesterUserId, boolean requesterIsAdmin) {
+        String sql = """
+                SELECT
+                    playlists.id AS playlist_id,
+                    playlists.user_id AS owner_id,
+                    playlists.name AS playlist_name,
+                    COALESCE(playlists.comment, '') AS playlist_comment,
+                    users.username AS owner_username,
+                    playlists.is_public AS is_public,
+                    playlists.created_at AS created_at,
+                    playlists.changed_at AS changed_at,
+                    COUNT(DISTINCT playlist_songs.song_id) AS song_count,
+                    COALESCE(SUM(DISTINCT songs.duration_seconds) FILTER (WHERE songs.id IS NOT NULL), 0) AS total_duration,
+                    playlists.cover_path AS cover_path
+                FROM playlists
+                JOIN users ON users.id = playlists.user_id
+                LEFT JOIN playlist_songs ON playlist_songs.playlist_id = playlists.id
+                LEFT JOIN songs ON songs.id = playlist_songs.song_id
+                WHERE playlists.id = ?
+                GROUP BY playlists.id, users.username;
+                """;
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, playlistId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int ownerId = rs.getInt("owner_id");
+                boolean isPublic = rs.getBoolean("is_public");
+                if (!requesterIsAdmin && ownerId != requesterUserId && !isPublic) {
+                    return null;
+                }
+                return mapPlaylistInfo(rs, requesterIsAdmin, requesterUserId);
+            }
+        } catch (Exception e) {
+            System.out.println("Get playlist info failed");
+            System.out.println(e.getMessage());
+        }
+
+        return null;
     }
 
     public static boolean verifyPlaylist(int userId, int playlistId) {
@@ -962,6 +1815,7 @@ public class Database {
             stmt.setInt(2, songId);
             stmt.setInt(3, nextPosition(playlistId));
             stmt.executeUpdate();
+            touchPlaylist(playlistId);
         } catch (Exception e) {
             System.out.println("Insert Song Failed");
             System.out.println(e.getMessage());
@@ -974,6 +1828,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -982,6 +1837,13 @@ public class Database {
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
                     songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number,
                     playlist_songs.position AS position
                 FROM playlist_songs
                 JOIN songs ON playlist_songs.song_id = songs.id
@@ -997,8 +1859,7 @@ public class Database {
             stmt.setInt(1, playlistId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1020,6 +1881,7 @@ public class Database {
             stmt.setInt(2, songId);
             int row = stmt.executeUpdate();
             if (row > 0) {
+                touchPlaylist(playlistId);
                 return true;
             }
         } catch (Exception e) {
@@ -1113,6 +1975,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -1120,7 +1983,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM liked_songs
                 JOIN songs ON liked_songs.song_id = songs.id
                 JOIN albums ON songs.album_id = albums.id
@@ -1135,8 +2005,7 @@ public class Database {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1147,17 +2016,27 @@ public class Database {
     }
 
     public static void addToRecentlyPlayer(int userId, int songId) {
+        addToRecentlyPlayer(userId, songId, null);
+    }
+
+    public static void addToRecentlyPlayer(int userId, int songId, Instant playedAt) {
         String sql = """
                 INSERT INTO recently_played (
                     user_id,
-                    song_id
+                    song_id,
+                    played_at
                 )
-                VALUES (?, ?);
+                VALUES (?, ?, ?);
                 """;
         try {
             PreparedStatement stmt = connection.prepareStatement(sql);
             stmt.setInt(1, userId);
             stmt.setInt(2, songId);
+            if (playedAt == null) {
+                stmt.setTimestamp(3, Timestamp.from(Instant.now()));
+            } else {
+                stmt.setTimestamp(3, Timestamp.from(playedAt));
+            }
             stmt.executeUpdate();
         } catch (Exception e) {
             System.out.println("Insert Recently played failed");
@@ -1171,6 +2050,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -1178,7 +2058,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM recently_played
                 JOIN songs ON recently_played.song_id = songs.id
                 JOIN albums ON songs.album_id = albums.id
@@ -1197,8 +2084,7 @@ public class Database {
             stmt.setInt(3, offset);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1214,6 +2100,7 @@ public class Database {
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -1222,6 +2109,13 @@ public class Database {
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
                     songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number,
                     COUNT(*) AS play_count
                 FROM recently_played
                 JOIN songs ON recently_played.song_id = songs.id
@@ -1241,8 +2135,7 @@ public class Database {
             stmt.setInt(3, offset);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 mostPlayedSongs.add(new MostPlayedSong(song, rs.getInt("play_count")));
             }
         } catch (Exception e) {
@@ -1265,6 +2158,7 @@ public class Database {
             stmt.setInt(2, playlistId);
             stmt.setInt(3, songId);
             stmt.executeUpdate();
+            touchPlaylist(playlistId);
         } catch (Exception e) {
             System.out.println("Song Reorder Failed");
             System.out.println(e.getMessage());
@@ -1293,11 +2187,30 @@ public class Database {
         return null;
     }
 
+    public static int getSongCount() {
+        String sql = """
+                SELECT COUNT(*) AS song_count
+                FROM songs;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("song_count");
+            }
+        } catch (Exception e) {
+            System.out.println("Get song count failed");
+            System.out.println(e.getMessage());
+        }
+        return 0;
+    }
+
     public static Song getSongInfo(int songId) {
         String sql = """
                 SELECT
                     songs.id AS song_id,
                     songs.title AS song_title,
+                    songs.genre AS genre,
                     STRING_AGG(artists.name, ', ') AS artist_name,
                     songs.album_id AS album_id,
                     albums.title AS album_title,
@@ -1314,7 +2227,7 @@ public class Database {
             stmt.setInt(1, songId);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getInt("album_id"), rs.getInt("duration_seconds"), "", 0L, 0L, "");
+                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), "", 0L, 0L, "");
                 song.setId(rs.getInt("song_id"));
                 return song;
             }
@@ -1336,6 +2249,7 @@ public class Database {
             stmt.setString(1, path);
             stmt.setInt(2, playlistId);
             stmt.executeUpdate();
+            touchPlaylist(playlistId);
         } catch (Exception e) {
             System.out.println("Song Reorder Failed");
             System.out.println(e.getMessage());
@@ -1360,5 +2274,210 @@ public class Database {
             System.out.println(e.getMessage());
         }
         return null;
+    }
+
+    public static void updateSubsonicTokenSecret(int userId, String subsonicTokenSecret) {
+        String sql = """
+                UPDATE users
+                SET subsonic_token_secret = ?
+                WHERE id = ?;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, subsonicTokenSecret);
+            stmt.setInt(2, userId);
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            System.out.println("Update Subsonic token secret failed");
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static String getSubsonicTokenSecret(int userId) {
+        String sql = """
+                SELECT subsonic_token_secret
+                FROM users
+                WHERE id = ?;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("subsonic_token_secret");
+            }
+        } catch (Exception e) {
+            System.out.println("Get Subsonic token secret failed");
+            System.out.println(e.getMessage());
+        }
+        return null;
+    }
+
+    public static boolean updatePlaylistMetadata(int playlistId, int userId, String name, String comment, Boolean isPublic) {
+        List<String> assignments = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
+
+        if (name != null) {
+            assignments.add("name = ?");
+            values.add(name);
+        }
+        if (comment != null) {
+            assignments.add("comment = ?");
+            values.add(comment);
+        }
+        if (isPublic != null) {
+            assignments.add("is_public = ?");
+            values.add(isPublic);
+        }
+
+        assignments.add("changed_at = NOW()");
+
+        String sql = """
+                UPDATE playlists
+                SET %s
+                WHERE id = ?
+                  AND user_id = ?;
+                """.formatted(String.join(", ", assignments));
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            int index = 1;
+            for (Object value : values) {
+                stmt.setObject(index, value);
+                index += 1;
+            }
+            stmt.setInt(index, playlistId);
+            stmt.setInt(index + 1, userId);
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.out.println("Update playlist metadata failed");
+            System.out.println(e.getMessage());
+        }
+
+        return false;
+    }
+
+    public static void replacePlaylistSongs(int playlistId, List<Integer> songIds) {
+        try {
+            PreparedStatement deleteStmt = connection.prepareStatement("""
+                    DELETE FROM playlist_songs
+                    WHERE playlist_id = ?;
+                    """);
+            deleteStmt.setInt(1, playlistId);
+            deleteStmt.executeUpdate();
+
+            if (songIds != null) {
+                for (Integer songId : songIds) {
+                    if (songId != null) {
+                        insertSongsToPlaylist(playlistId, songId);
+                    }
+                }
+            }
+
+            touchPlaylist(playlistId);
+        } catch (Exception e) {
+            System.out.println("Replace playlist songs failed");
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static boolean deleteSongFromPlaylistByIndex(int playlistId, int songIndex) {
+        if (songIndex < 0) {
+            return false;
+        }
+
+        String sql = """
+                DELETE FROM playlist_songs
+                WHERE playlist_id = ?
+                  AND position = (
+                      SELECT position
+                      FROM playlist_songs
+                      WHERE playlist_id = ?
+                      ORDER BY position
+                      OFFSET ?
+                      LIMIT 1
+                  );
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, playlistId);
+            stmt.setInt(2, playlistId);
+            stmt.setInt(3, songIndex);
+            int row = stmt.executeUpdate();
+            if (row > 0) {
+                touchPlaylist(playlistId);
+                return true;
+            }
+        } catch (Exception e) {
+            System.out.println("Delete playlist song by index failed");
+            System.out.println(e.getMessage());
+        }
+
+        return false;
+    }
+
+    private static void touchPlaylist(int playlistId) {
+        try {
+            PreparedStatement stmt = connection.prepareStatement("""
+                    UPDATE playlists
+                    SET changed_at = NOW()
+                    WHERE id = ?;
+                    """);
+            stmt.setInt(1, playlistId);
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            System.out.println("Touch playlist failed");
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private static PlaylistInfo mapPlaylistInfo(ResultSet rs, boolean requesterIsAdmin, int requesterUserId) throws SQLException {
+        int playlistId = rs.getInt("playlist_id");
+        String owner = rs.getString("owner_username");
+        boolean hasCover = hasUsablePlaylistCoverPath(rs.getString("cover_path"));
+        boolean isPublic = rs.getBoolean("is_public");
+        int ownerId = hasColumn(rs, "owner_id") ? rs.getInt("owner_id") : requesterUserId;
+        boolean readonly = !requesterIsAdmin && ownerId != requesterUserId;
+        String coverArt = hasCover ? "playlist:" + playlistId : "";
+
+        return new PlaylistInfo(
+                playlistId,
+                rs.getString("playlist_name"),
+                rs.getString("playlist_comment"),
+                owner,
+                isPublic,
+                formatTimestamp(rs.getObject("created_at", OffsetDateTime.class)),
+                formatTimestamp(rs.getObject("changed_at", OffsetDateTime.class)),
+                rs.getInt("song_count"),
+                rs.getInt("total_duration"),
+                coverArt,
+                readonly
+        );
+    }
+
+    private static boolean hasUsablePlaylistCoverPath(String coverPath) {
+        if (coverPath == null || coverPath.isBlank()) {
+            return false;
+        }
+
+        File file = new File(coverPath);
+        return file.exists() && file.isFile() && file.length() > 0;
+    }
+
+    private static boolean hasColumn(ResultSet rs, String columnName) {
+        try {
+            rs.findColumn(columnName);
+            return true;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static String formatTimestamp(OffsetDateTime timestamp) {
+        if (timestamp == null) {
+            return "";
+        }
+
+        return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(timestamp);
     }
 }
