@@ -320,12 +320,20 @@ public final class SubsonicResponses {
     }
 
     public static void writeAlbumList2(Context ctx, List<Album> albums) {
+        writeAlbumListResponse(ctx, albums, "albumList2");
+    }
+
+    public static void writeAlbumList(Context ctx, List<Album> albums) {
+        writeAlbumListResponse(ctx, albums, "albumList");
+    }
+
+    private static void writeAlbumListResponse(Context ctx, List<Album> albums, String responseName) {
         List<Map<String, Object>> albumPayload = albums.stream()
                 .map(SubsonicResponses::toAlbumPayload)
                 .toList();
 
         Map<String, Object> payload = baseResponse("ok");
-        payload.put("albumList2", Map.of("album", albumPayload));
+        payload.put(responseName, Map.of("album", albumPayload));
 
         String format = requestedFormat(ctx);
         if ("json".equalsIgnoreCase(format)) {
@@ -341,11 +349,11 @@ public final class SubsonicResponses {
         xml.append(xmlDeclaration());
         xml.append(openRoot(payload));
         xml.append(">");
-        xml.append("<albumList2>");
+        xml.append("<").append(responseName).append(">");
         for (Album album : albums) {
             appendAlbumElement(xml, album);
         }
-        xml.append("</albumList2>");
+        xml.append("</").append(responseName).append(">");
         xml.append("</subsonic-response>");
         ctx.result(xml.toString());
     }

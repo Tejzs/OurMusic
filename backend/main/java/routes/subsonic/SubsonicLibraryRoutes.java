@@ -70,27 +70,16 @@ public final class SubsonicLibraryRoutes {
                 return;
             }
 
-            String type = SubsonicRequest.param(ctx, "type");
-            if (isBlank(type)) {
-                type = "alphabeticalByName";
-            }
+            writeAlbumListResponse(ctx, user, false);
+        });
 
-            int size = parseIntOrDefault(SubsonicRequest.param(ctx, "size"), 10);
-            int offset = parseIntOrDefault(SubsonicRequest.param(ctx, "offset"), 0);
-            String genre = SubsonicRequest.param(ctx, "genre");
-            Integer fromYear = parseOptionalInt(SubsonicRequest.param(ctx, "fromYear"));
-            Integer toYear = parseOptionalInt(SubsonicRequest.param(ctx, "toYear"));
-
-            size = Math.max(0, Math.min(size, 500));
-            offset = Math.max(0, offset);
-
-            List<Album> albums = Database.getAlbumList(type, size, offset, user.getId(), genre, fromYear, toYear);
-            if (albums.isEmpty() && !isSupportedAlbumListType(type)) {
-                SubsonicResponses.writeError(ctx, 400, 0, "Unsupported album list type.");
+        SubsonicRequest.register(app, "/rest/getAlbumList.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
                 return;
             }
 
-            SubsonicResponses.writeAlbumList2(ctx, albums);
+            writeAlbumListResponse(ctx, user, true);
         });
 
         SubsonicRequest.register(app, "/rest/search3.view", ctx -> {
@@ -309,6 +298,35 @@ public final class SubsonicLibraryRoutes {
                 || "recent".equals(type)
                 || "frequent".equals(type)
                 || "starred".equals(type);
+    }
+
+    private static void writeAlbumListResponse(io.javalin.http.Context ctx, User user, boolean legacy) {
+        String type = SubsonicRequest.param(ctx, "type");
+        if (isBlank(type)) {
+            type = "alphabeticalByName";
+        }
+
+        int size = parseIntOrDefault(SubsonicRequest.param(ctx, "size"), 10);
+        int offset = parseIntOrDefault(SubsonicRequest.param(ctx, "offset"), 0);
+        String genre = SubsonicRequest.param(ctx, "genre");
+        Integer fromYear = parseOptionalInt(SubsonicRequest.param(ctx, "fromYear"));
+        Integer toYear = parseOptionalInt(SubsonicRequest.param(ctx, "toYear"));
+
+        size = Math.max(0, Math.min(size, 500));
+        offset = Math.max(0, offset);
+
+        List<Album> albums = Database.getAlbumList(type, size, offset, user.getId(), genre, fromYear, toYear);
+        if (albums.isEmpty() && !isSupportedAlbumListType(type)) {
+            SubsonicResponses.writeError(ctx, 400, 0, "Unsupported album list type.");
+            return;
+        }
+
+        if (legacy) {
+            SubsonicResponses.writeAlbumList(ctx, albums);
+            return;
+        }
+
+        SubsonicResponses.writeAlbumList2(ctx, albums);
     }
 
     private static void applyStarMutation(io.javalin.http.Context ctx, int userId, boolean star) {
