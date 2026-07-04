@@ -16,6 +16,7 @@ public class Properties {
     private static String ADMIN_PASSWORD;
     private static String FFMPEG_PATH;
     private static String CORS_ALLOWED_ORIGINS;
+    private static String SESSION_COOKIE_SECURE;
 
     public static void loadConfigurations(String path) {
         java.util.Properties props = new java.util.Properties();
@@ -38,6 +39,7 @@ public class Properties {
         ADMIN_PASSWORD = props.getProperty("admin.password");
         FFMPEG_PATH = props.getProperty("ffmpeg.path", "ffmpeg");
         CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins");
+        SESSION_COOKIE_SECURE = props.getProperty("session.cookie.secure");
 
         System.out.println("Properties Loaded");
     }
@@ -84,5 +86,9 @@ public class Properties {
 
     public static String[] getCorsAllowedOrigins() {
         return CORS_ALLOWED_ORIGINS.split("\\s*,\\s*");
+    }
+
+    public static boolean isSessionCookieSecure() {
+        return Boolean.parseBoolean(SESSION_COOKIE_SECURE);
     }
 }

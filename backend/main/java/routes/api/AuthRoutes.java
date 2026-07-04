@@ -7,11 +7,16 @@ import org.mindrot.jbcrypt.BCrypt;
 
 import auth.RegisterRequest;
 import auth.User;
+import config.Properties;
+import io.javalin.http.Cookie;
 import io.javalin.Javalin;
+import io.javalin.http.SameSite;
 import postgresql.Database;
 import routes.subsonic.SubsonicTokenSecret;
 
 public class AuthRoutes {
+    private static final int SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+
     public static void register(Javalin app) {
         app.post("/api/auth/register", ctx -> {
             RegisterRequest req = ctx.bodyAsClass(RegisterRequest.class);
@@ -55,7 +60,18 @@ public class AuthRoutes {
             Database.createSessionToken(user.getId(), token);
             Database.updateSubsonicTokenSecret(user.getId(), SubsonicTokenSecret.encrypt(req.getPassword()));
 
-            ctx.cookie("ourmusic_session", token);
+            ctx.cookie(new Cookie(
+                    "ourmusic_session",
+                    token,
+                    "/",
+                    SESSION_COOKIE_MAX_AGE_SECONDS,
+                    Properties.isSessionCookieSecure(),
+                    0,
+                    true,
+                    null,
+                    null,
+                    SameSite.LAX
+            ));
             ctx.json(Map.of("message", "success"));
         });
 
@@ -74,7 +90,7 @@ public class AuthRoutes {
                 return;
             }
 
-            ctx.removeCookie("ourmusic_session");
+            ctx.removeCookie("ourmusic_session", "/");
             ctx.json(Map.of("message", "success"));
         });
     }
