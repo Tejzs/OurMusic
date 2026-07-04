@@ -88,6 +88,19 @@ async function uploadPlaylistCover(playlistId: number, file: File) {
   return response;
 }
 
+async function importPlaylistM3u8(playlistId: number, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(apiUrl(`/api/playlists/${playlistId}/import/m3u8`), {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  return response;
+}
+
 async function updatePlaylistSongPosition(playlistId: number, songId: number, position: number) {
   const response = await fetch(
     apiUrl(`/api/playlists/${playlistId}/songs/${songId}/position/${position}`),
@@ -125,10 +138,12 @@ export function PlaylistsView({
   const [isReordering, setIsReordering] = useState(false);
   const [playlistCoverVersions, setPlaylistCoverVersions] = useState<Record<number, number>>({});
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isImportingM3u8, setIsImportingM3u8] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [, setMessage] = useState<string | null>(null);
   const playlistMenuRef = useRef<HTMLDivElement | null>(null);
   const playlistCoverInputRef = useRef<HTMLInputElement | null>(null);
+  const playlistImportInputRef = useRef<HTMLInputElement | null>(null);
   const playlistSongsRef = useRef<HTMLDivElement | null>(null);
 
   const loadPlaylists = useCallback(async () => {
@@ -281,6 +296,10 @@ export function PlaylistsView({
     playlistCoverInputRef.current?.click();
   }
 
+  function handleImportInputClick() {
+    playlistImportInputRef.current?.click();
+  }
+
   async function handlePlaylistCoverChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
@@ -316,6 +335,41 @@ export function PlaylistsView({
       setError(uploadError instanceof Error ? uploadError.message : "Something went wrong.");
     } finally {
       setIsUploadingCover(false);
+    }
+  }
+
+  async function handlePlaylistImportChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (selectedPlaylist === null || file === undefined) {
+      return;
+    }
+
+    setIsImportingM3u8(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await importPlaylistM3u8(selectedPlaylist.id, file);
+
+      if (response.status === 401 || response.status === 403) {
+        onUnauthorized?.();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to import playlist file.");
+      }
+
+      setMessage("Playlist import started.");
+      await loadPlaylistSongs(selectedPlaylist.id);
+      await loadPlaylists();
+      onPlaylistsChanged?.();
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "Something went wrong.");
+    } finally {
+      setIsImportingM3u8(false);
     }
   }
 
@@ -533,6 +587,14 @@ export function PlaylistsView({
         onChange={handlePlaylistCoverChange}
       />
 
+      <input
+        ref={playlistImportInputRef}
+        type="file"
+        accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl"
+        className="hidden"
+        onChange={handlePlaylistImportChange}
+      />
+
       <div className="mt-6 grid h-full min-h-0 flex-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <section className="h-full min-h-0 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40">
           <div className="h-full overflow-auto">
@@ -678,6 +740,15 @@ export function PlaylistsView({
                       >
                         <Upload className="h-3.5 w-3.5" />
                         {isUploadingCover ? "Uploading..." : "Upload cover"}
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:border-white/20 hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={handleImportInputClick}
+                        disabled={isImportingM3u8}
+                      >
+                        <ListMusic className="h-3.5 w-3.5" />
+                        {isImportingM3u8 ? "Importing..." : "Import M3U8"}
                       </button>
                     </div>
                   ) : null}
