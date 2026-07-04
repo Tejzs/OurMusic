@@ -1,7 +1,10 @@
 package routes.api;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -305,5 +308,58 @@ public class PlaylistRoutes {
             ctx.result(new FileInputStream(file));
         });
 
+        app.post("/api/playlists/{playlistId}/import/m3u8", ctx -> {
+            String playlistId = ctx.pathParam("playlistId");
+            String token = ctx.cookie("ourmusic_session");
+
+            if (token == null) {
+                ctx.status(401).json(Map.of("message", "not logged in"));
+                return;
+            }
+
+            int userId = Database.getUserIdFromSession(token);
+
+            if (userId == -1) {
+                ctx.status(401).json(Map.of("message", "invalid session"));
+                return;
+            }
+
+            boolean ok = Database.verifyPlaylist(userId, Integer.valueOf(playlistId));
+
+            if (!ok) {
+                ctx.status(403).json(Map.of("message", "playlist not found or not yours"));
+                return;
+            }
+
+            UploadedFile uploadedFile = ctx.uploadedFile("file");
+
+            if (uploadedFile == null) {
+                ctx.status(400).json(Map.of("message", "no file uploaded"));
+                return;
+            }
+
+            int total = 0;
+            int imported = 0;
+
+            try {
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(uploadedFile.content()));
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    if (!line.startsWith("#")) {
+                        total++;
+                        int songId = Database.searchSongFromFilePath(line.substring(line.lastIndexOf("/") + 1));
+                        if (songId != -1) {
+                            Database.insertSongsToPlaylist(Integer.parseInt(playlistId), songId);         
+                            imported++;                   
+                        }
+                    }
+                }
+    
+                ctx.json(Map.of("imported", imported, "skipped", total - imported));
+
+            } catch (Exception e) {
+                System.out.println("Unable to read file");
+            }
+        });
     }
 }

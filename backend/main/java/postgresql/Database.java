@@ -277,6 +277,30 @@ public class Database {
         return songs;
     }
 
+    public static int searchSongFromFilePath(String path) {
+        String sql = """
+                SELECT id
+                FROM songs
+                WHERE file_path LIKE ?;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            String searchPattern = "%/" + path;
+
+            stmt.setString(1, searchPattern);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                return rs.getInt("id");
+            }
+        } catch (Exception e) {
+            System.out.println("Failed to find: " + path);
+            System.out.println(e.getMessage());
+        }
+        return -1;
+    }
+
     public static List<Song> scanSongs(int limit, int offset) {
         List<Song> songs = new ArrayList<>();
 
