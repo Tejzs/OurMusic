@@ -27,7 +27,11 @@ public class Server {
         Javalin app = Javalin.create(config -> {
             config.bundledPlugins.enableCors(cors -> {
                 cors.addRule(rule -> {
-                    rule.anyHost();
+                    for (String origin : Properties.getCorsAllowedOrigins()) {
+                        if (!origin.isBlank()) {
+                            rule.allowHost(origin);
+                        }
+                    }
                 });
             });
         }).start(Properties.getPort());

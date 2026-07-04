@@ -15,6 +15,7 @@ public class Properties {
     private static String ADMIN_USERNAME;
     private static String ADMIN_PASSWORD;
     private static String FFMPEG_PATH;
+    private static String CORS_ALLOWED_ORIGINS;
 
     public static void loadConfigurations(String path) {
         java.util.Properties props = new java.util.Properties();
@@ -32,10 +33,11 @@ public class Properties {
         ARTWORK_FOLDER = props.getProperty("artwork.folder");
 
         PORT = props.getProperty("app.port");
-        SUBSONIC_AUTH_SECRET = props.getProperty("subsonic.auth.secret", DB_PASSWORD);
-        ADMIN_USERNAME = props.getProperty("admin.username", "admin");
-        ADMIN_PASSWORD = props.getProperty("admin.password", "ourmusic");
+        SUBSONIC_AUTH_SECRET = props.getProperty("subsonic.auth.secret");
+        ADMIN_USERNAME = props.getProperty("admin.username");
+        ADMIN_PASSWORD = props.getProperty("admin.password");
         FFMPEG_PATH = props.getProperty("ffmpeg.path", "ffmpeg");
+        CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins");
 
         System.out.println("Properties Loaded");
     }
@@ -78,5 +80,9 @@ public class Properties {
 
     public static String getFfmpegPath() {
         return FFMPEG_PATH;
+    }
+
+    public static String[] getCorsAllowedOrigins() {
+        return CORS_ALLOWED_ORIGINS.split("\\s*,\\s*");
     }
 }
