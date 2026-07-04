@@ -164,43 +164,33 @@ public final class SubsonicMediaRoutes {
                 return;
             }
 
-            String mimeType = probeMimeType(file.toPath());
-            String range = ctx.header("Range");
-            long fileLength = file.length();
+            serveOriginalFile(ctx, file, "inline");
+        });
 
-            ctx.contentType(mimeType);
-            ctx.header("Accept-Ranges", "bytes");
-            ctx.header("Content-Disposition", "inline; filename=\"" + escapeHeaderValue(file.getName()) + "\"");
-
-            if (isBlank(range)) {
-                ctx.header("Content-Length", String.valueOf(fileLength));
-                try {
-                    ctx.result(new FileInputStream(file));
-                } catch (IOException e) {
-                    SubsonicResponses.writeError(ctx, 500, 0, "Unable to open media file.");
-                }
+        SubsonicRequest.register(app, "/rest/download.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
                 return;
             }
 
-            ByteRange byteRange = parseRange(range, fileLength);
-            if (byteRange == null) {
-                ctx.status(416);
-                ctx.header("Content-Range", "bytes */" + fileLength);
+            Integer songId = parseRequiredId(ctx, "id");
+            if (songId == null) {
                 return;
             }
 
-            long contentLength = byteRange.end() - byteRange.start() + 1;
-            ctx.status(206);
-            ctx.header("Content-Range", "bytes " + byteRange.start() + "-" + byteRange.end() + "/" + fileLength);
-            ctx.header("Content-Length", String.valueOf(contentLength));
-
-            try {
-                FileInputStream fileInputStream = new FileInputStream(file);
-                fileInputStream.getChannel().position(byteRange.start());
-                ctx.result(new LimitedInputStream(fileInputStream, contentLength));
-            } catch (IOException e) {
-                SubsonicResponses.writeError(ctx, 500, 0, "Unable to read requested media range.");
+            Song song = Database.getSong(songId);
+            if (song == null) {
+                SubsonicResponses.writeError(ctx, 404, 70, "Song not found.");
+                return;
             }
+
+            File file = new File(song.getFilePath());
+            if (!file.exists()) {
+                SubsonicResponses.writeError(ctx, 404, 70, "Media file not found.");
+                return;
+            }
+
+            serveOriginalFile(ctx, file, "attachment");
         });
 
         SubsonicRequest.register(app, "/rest/getCoverArt.view", ctx -> {
@@ -342,6 +332,46 @@ public final class SubsonicMediaRoutes {
         }
 
         return "application/octet-stream";
+    }
+
+    private static void serveOriginalFile(io.javalin.http.Context ctx, File file, String dispositionType) {
+        String mimeType = probeMimeType(file.toPath());
+        String range = ctx.header("Range");
+        long fileLength = file.length();
+
+        ctx.contentType(mimeType);
+        ctx.header("Accept-Ranges", "bytes");
+        ctx.header("Content-Disposition", dispositionType + "; filename=\"" + escapeHeaderValue(file.getName()) + "\"");
+
+        if (isBlank(range)) {
+            ctx.header("Content-Length", String.valueOf(fileLength));
+            try {
+                ctx.result(new FileInputStream(file));
+            } catch (IOException e) {
+                SubsonicResponses.writeError(ctx, 500, 0, "Unable to open media file.");
+            }
+            return;
+        }
+
+        ByteRange byteRange = parseRange(range, fileLength);
+        if (byteRange == null) {
+            ctx.status(416);
+            ctx.header("Content-Range", "bytes */" + fileLength);
+            return;
+        }
+
+        long contentLength = byteRange.end() - byteRange.start() + 1;
+        ctx.status(206);
+        ctx.header("Content-Range", "bytes " + byteRange.start() + "-" + byteRange.end() + "/" + fileLength);
+        ctx.header("Content-Length", String.valueOf(contentLength));
+
+        try {
+            FileInputStream fileInputStream = new FileInputStream(file);
+            fileInputStream.getChannel().position(byteRange.start());
+            ctx.result(new LimitedInputStream(fileInputStream, contentLength));
+        } catch (IOException e) {
+            SubsonicResponses.writeError(ctx, 500, 0, "Unable to read requested media range.");
+        }
     }
 
     private static boolean isBlank(String value) {
