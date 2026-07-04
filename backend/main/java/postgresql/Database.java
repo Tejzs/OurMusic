@@ -17,6 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import scanner.Album;
 import scanner.Artist;
 import scanner.MostPlayedSong;
@@ -27,6 +30,7 @@ import scanner.Song;
 public class Database {
 
     private static Connection connection;
+    private static final Logger LOG = LoggerFactory.getLogger(Database.class);
 
     private static Connection createConnection() throws Exception {
         return DriverManager.getConnection(Properties.getDBURL(), Properties.getDBUusername(), Properties.getDBPassword());
@@ -319,8 +323,7 @@ public class Database {
                 return song;
             }
         } catch (Exception e) {
-            System.out.println("Unknown ID: " + id);
-            System.out.println(e.getMessage());
+            LOG.warn("Song lookup failed for id {}", id, e);
         }
         return null;
     }
@@ -394,8 +397,7 @@ public class Database {
             }
             return songs;
         } catch (Exception e) {
-            System.out.println("Failed to search: " + pattern);
-            System.out.println(e.getMessage());
+            LOG.warn("Song search failed for pattern {}", pattern, e);
         }
         return songs;
     }
@@ -418,8 +420,7 @@ public class Database {
                 return rs.getInt("id");
             }
         } catch (Exception e) {
-            System.out.println("Failed to find: " + path);
-            System.out.println(e.getMessage());
+            LOG.warn("Song lookup by file path failed for {}", path, e);
         }
         return -1;
     }
@@ -479,8 +480,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Get songs by genre failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get songs by genre failed for {}", genre, e);
         }
 
         return songs;
@@ -537,8 +537,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Get random songs failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get random songs failed for genre {}", genre, e);
         }
 
         return songs;
@@ -587,8 +586,7 @@ public class Database {
             }
             return artists;
         } catch (Exception e) {
-            System.out.println("Artist search failed: " + pattern);
-            System.out.println(e.getMessage());
+            LOG.warn("Artist search failed for pattern {}", pattern, e);
         }
 
         return artists;
@@ -643,8 +641,7 @@ public class Database {
             }
             return albums;
         } catch (Exception e) {
-            System.out.println("Album search failed: " + pattern);
-            System.out.println(e.getMessage());
+            LOG.warn("Album search failed for pattern {}", pattern, e);
         }
 
         return albums;
@@ -695,8 +692,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Song scan query failed", e);
         }
 
         return songs;
@@ -719,7 +715,7 @@ public class Database {
                 return rs.getInt("id");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            LOG.warn("Artist upsert failed for {}", name, e);
         }
         return -1;
     }
@@ -741,7 +737,7 @@ public class Database {
             stmt.setInt(2, artistId);
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            LOG.warn("Artist image update failed for id {}", artistId, e);
         }
     }
 
@@ -763,7 +759,7 @@ public class Database {
                 return rs.getInt("id");
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            LOG.warn("Album upsert failed for title {} and artist {}", title, artistId, e);
         }
         return -1;
     }
@@ -803,8 +799,7 @@ public class Database {
             }
             return albums;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Album scan query failed", e);
         }
         return albums;
     }
@@ -916,8 +911,7 @@ public class Database {
             }
             return albums;
         } catch (Exception e) {
-            System.out.println("Album list failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Album list failed for type {}", type, e);
         }
 
         return albums;
@@ -950,8 +944,7 @@ public class Database {
                 ));
             }
         } catch (Exception e) {
-            System.out.println("Get genres failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get genres failed", e);
         }
 
         return genres;
@@ -1002,8 +995,7 @@ public class Database {
                 ));
             }
         } catch (Exception e) {
-            System.out.println("Get starred albums failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get starred albums failed for user {}", userId, e);
         }
 
         return albums;
@@ -1052,8 +1044,7 @@ public class Database {
             }
             return songs;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Album songs query failed for album {}", id, e);
         }
         return songs;
     }
@@ -1091,8 +1082,7 @@ public class Database {
             }
             return artists;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Artist page query failed", e);
         }
         return artists;
     }
@@ -1131,8 +1121,7 @@ public class Database {
             }
             return artists;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("All artists query failed", e);
         }
         return artists;
     }
@@ -1181,8 +1170,7 @@ public class Database {
             }
             return songs;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Artist songs query failed for artist {}", id, e);
         }
         return songs;
     }
@@ -1220,8 +1208,7 @@ public class Database {
             }
             return albums;
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Artist albums query failed for artist {}", id, e);
         }
         return albums;
     }
@@ -1256,8 +1243,7 @@ public class Database {
                 );
             }
         } catch (Exception e) {
-            System.out.println("Artist lookup failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Artist lookup failed for id {}", id, e);
         }
 
         return null;
@@ -1297,8 +1283,7 @@ public class Database {
                 );
             }
         } catch (Exception e) {
-            System.out.println("Album lookup failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Album lookup failed for id {}", id, e);
         }
 
         return null;
@@ -1318,8 +1303,7 @@ public class Database {
             stmt.setInt(2, artistId);
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println("Insert failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Song artist insert failed for song {} and artist {}", songId, artistId, e);
         }
     }
 
@@ -1368,8 +1352,7 @@ public class Database {
                 }
             }
         } catch (Exception e) {
-            System.out.println("Insert failed");
-            System.out.println(e.getMessage());
+            LOG.warn("User registration failed for {}", username, e);
         }
         return -1; // Failure
     }
@@ -1382,11 +1365,11 @@ public class Database {
 
         int result = registerUser(username, passwordHash, subsonicTokenSecret, true);
         if (result > 0) {
-            System.out.println("Seeded admin user: " + username);
+            LOG.info("Seeded admin user: {}", username);
             return;
         }
 
-        System.out.println("Failed to seed admin user: " + username);
+        LOG.warn("Failed to seed admin user: {}", username);
     }
 
     public static User getUserByName(String username) {
@@ -1406,8 +1389,7 @@ public class Database {
                 return user;
             }
         } catch (Exception e) {
-            System.out.println("Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("User lookup failed for {}", username, e);
         }
         return null;
     }
@@ -1427,8 +1409,7 @@ public class Database {
             stmt.setString(2, token);
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println("Session Creation Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Session creation failed for user {}", userId, e);
         }
     }
 
@@ -1450,8 +1431,7 @@ public class Database {
                 return rs.getInt("user_id");
             }
         } catch (Exception e) {
-            System.out.println("Session check failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Session check failed", e);
         }
 
         return -1;
@@ -1475,8 +1455,7 @@ public class Database {
                 return user;
             }
         } catch (Exception e) {
-            System.out.println("Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("User lookup failed for id {}", userId, e);
         }
 
         return null;
@@ -1497,8 +1476,7 @@ public class Database {
 
             return rows > 0;
         } catch (Exception e) {
-            System.out.println("Clear session failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Clear session failed", e);
         }
 
         return false;
@@ -1523,8 +1501,7 @@ public class Database {
                 users.add(user);
             }
         } catch (Exception e) {
-            System.out.println("Scan failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get all users failed", e);
         }
         return users;
     }
@@ -1550,8 +1527,7 @@ public class Database {
             int userRows = stmt.executeUpdate();
             return userRows > 0;
         } catch (Exception e) {
-            System.out.println("Delete session failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Delete user failed for id {}", id, e);
         }
 
         return false;
@@ -1570,8 +1546,7 @@ public class Database {
             int row = stmt.executeUpdate();
             return row > 0;
         } catch (Exception e) {
-            System.out.println("Delete session failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Change username failed for user {}", id, e);
         }
         return false;
     }
@@ -1595,8 +1570,7 @@ public class Database {
             int row = stmt.executeUpdate();
             return row > 0;
         } catch (Exception e) {
-            System.out.println("Delete session failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Change password failed for user {}", id, e);
         }
         return false;
     }
@@ -1614,8 +1588,7 @@ public class Database {
             int row = stmt.executeUpdate();
             return row > 0;
         } catch (Exception e) {
-            System.out.println("Update admin role failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Update admin role failed for user {}", id, e);
         }
         return false;
     }
@@ -1646,8 +1619,7 @@ public class Database {
                 return rs.getInt("id");
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Create playlist failed for user {}", userId, e);
         }
         return -1;
     }
@@ -1672,8 +1644,7 @@ public class Database {
                 playlists.add(playlist);
             }
         } catch (Exception e) {
-            System.out.println("Get playlists failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get playlists failed for user {}", userId, e);
         }
         return playlists;
     }
@@ -1709,8 +1680,7 @@ public class Database {
                 playlists.add(mapPlaylistInfo(rs, isAdmin, userId));
             }
         } catch (Exception e) {
-            System.out.println("Get playlist infos failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get playlist infos failed for user {}", userId, e);
         }
 
         return playlists;
@@ -1751,8 +1721,7 @@ public class Database {
                 return mapPlaylistInfo(rs, requesterIsAdmin, requesterUserId);
             }
         } catch (Exception e) {
-            System.out.println("Get playlist info failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get playlist info failed for playlist {}", playlistId, e);
         }
 
         return null;
@@ -1774,8 +1743,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Verify playlist failed for user {} and playlist {}", userId, playlistId, e);
         }
         return false;
     }
@@ -1794,8 +1762,7 @@ public class Database {
                 return rs.getInt("next_position");
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Next playlist position lookup failed for playlist {}", playlistId, e);
         }
         return -1;
     }
@@ -1817,8 +1784,7 @@ public class Database {
             stmt.executeUpdate();
             touchPlaylist(playlistId);
         } catch (Exception e) {
-            System.out.println("Insert Song Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Insert song {} into playlist {} failed", songId, playlistId, e);
         }
     }
 
@@ -1863,8 +1829,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Get playlists failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get playlist songs failed for playlist {}", playlistId, e);
         }
         return songs;
     }
@@ -1885,8 +1850,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Delete song {} from playlist {} failed", songId, playlistId, e);
         }
         return false;
     }
@@ -1917,8 +1881,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Delete playlist {} failed for user {}", playlistId, userId, e);
         }
         return false;
     }
@@ -1942,8 +1905,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Like song {} failed for user {}", songId, userId, e);
         }
         return false;
     }
@@ -1963,8 +1925,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Create playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Unlike song {} failed for user {}", songId, userId, e);
         }
         return false;
     }
@@ -2009,8 +1970,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Get liked songs failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get liked songs failed for user {}", userId, e);
         }
         return songs;
     }
@@ -2039,8 +1999,7 @@ public class Database {
             }
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println("Insert Recently played failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Insert recently played failed for user {} and song {}", userId, songId, e);
         }
     }
 
@@ -2088,8 +2047,7 @@ public class Database {
                 songs.add(song);
             }
         } catch (Exception e) {
-            System.out.println("Get Recently Played Songs Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get recently played songs failed for user {}", userId, e);
         }
         return songs;
     }
@@ -2139,8 +2097,7 @@ public class Database {
                 mostPlayedSongs.add(new MostPlayedSong(song, rs.getInt("play_count")));
             }
         } catch (Exception e) {
-            System.out.println("Get Recently Played Songs Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get most played songs failed for user {}", userId, e);
         }
         return mostPlayedSongs;
     }
@@ -2160,8 +2117,7 @@ public class Database {
             stmt.executeUpdate();
             touchPlaylist(playlistId);
         } catch (Exception e) {
-            System.out.println("Song Reorder Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Song reorder failed for playlist {} and song {}", playlistId, songId, e);
         }
     }
 
@@ -2181,8 +2137,7 @@ public class Database {
                 return Map.of("songs:", rs.getInt("song_count"), "albums:", rs.getInt("album_count"), "artists", rs.getInt("artist_count"), "playlists", rs.getInt("playlist_count"));
             }
         } catch (Exception e) {
-            System.out.println("Song Reorder Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Stats lookup failed for user {}", userId, e);
         }
         return null;
     }
@@ -2199,8 +2154,7 @@ public class Database {
                 return rs.getInt("song_count");
             }
         } catch (Exception e) {
-            System.out.println("Get song count failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get song count failed", e);
         }
         return 0;
     }
@@ -2232,8 +2186,7 @@ public class Database {
                 return song;
             }
         } catch (Exception e) {
-            System.out.println("Song Reorder Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Song info lookup failed for song {}", songId, e);
         }
         return null;
     }
@@ -2251,8 +2204,7 @@ public class Database {
             stmt.executeUpdate();
             touchPlaylist(playlistId);
         } catch (Exception e) {
-            System.out.println("Song Reorder Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Set playlist cover art failed for playlist {}", playlistId, e);
         }
     }
 
@@ -2270,8 +2222,7 @@ public class Database {
                 return rs.getString("cover_path");
             }
         } catch (Exception e) {
-            System.out.println("Song Reorder Failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get playlist cover art path failed for playlist {}", playlistId, e);
         }
         return null;
     }
@@ -2288,8 +2239,7 @@ public class Database {
             stmt.setInt(2, userId);
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println("Update Subsonic token secret failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Update Subsonic token secret failed for user {}", userId, e);
         }
     }
 
@@ -2307,8 +2257,7 @@ public class Database {
                 return rs.getString("subsonic_token_secret");
             }
         } catch (Exception e) {
-            System.out.println("Get Subsonic token secret failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Get Subsonic token secret failed for user {}", userId, e);
         }
         return null;
     }
@@ -2350,8 +2299,7 @@ public class Database {
             stmt.setInt(index + 1, userId);
             return stmt.executeUpdate() > 0;
         } catch (Exception e) {
-            System.out.println("Update playlist metadata failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Update playlist metadata failed for playlist {} and user {}", playlistId, userId, e);
         }
 
         return false;
@@ -2376,8 +2324,7 @@ public class Database {
 
             touchPlaylist(playlistId);
         } catch (Exception e) {
-            System.out.println("Replace playlist songs failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Replace playlist songs failed for playlist {}", playlistId, e);
         }
     }
 
@@ -2409,8 +2356,7 @@ public class Database {
                 return true;
             }
         } catch (Exception e) {
-            System.out.println("Delete playlist song by index failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Delete playlist song by index failed for playlist {} and index {}", playlistId, songIndex, e);
         }
 
         return false;
@@ -2426,8 +2372,7 @@ public class Database {
             stmt.setInt(1, playlistId);
             stmt.executeUpdate();
         } catch (Exception e) {
-            System.out.println("Touch playlist failed");
-            System.out.println(e.getMessage());
+            LOG.warn("Touch playlist failed for playlist {}", playlistId, e);
         }
     }
 

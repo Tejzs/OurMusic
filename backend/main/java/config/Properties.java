@@ -2,6 +2,9 @@ package config;
 
 import java.io.FileInputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Properties {
     private static String DB_URL;
     private static String DB_USERNAME;
@@ -17,6 +20,10 @@ public class Properties {
     private static String FFMPEG_PATH;
     private static String CORS_ALLOWED_ORIGINS;
     private static String SESSION_COOKIE_SECURE;
+
+    private static String REQUEST_LOGGING;
+    
+    private static final Logger LOG = LoggerFactory.getLogger(Properties.class);
 
     public static void loadConfigurations(String path) {
         java.util.Properties props = new java.util.Properties();
@@ -38,10 +45,11 @@ public class Properties {
         ADMIN_USERNAME = props.getProperty("admin.username");
         ADMIN_PASSWORD = props.getProperty("admin.password");
         FFMPEG_PATH = props.getProperty("ffmpeg.path", "ffmpeg");
-        CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins");
-        SESSION_COOKIE_SECURE = props.getProperty("session.cookie.secure");
+        CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins", "http://localhost:3000");
+        SESSION_COOKIE_SECURE = props.getProperty("session.cookie.secure", "false");
+        REQUEST_LOGGING = props.getProperty("request.logging.enabled", "false");
 
-        System.out.println("Properties Loaded");
+        LOG.info("Properties loaded");
     }
 
     public static String getDBURL() {
@@ -90,5 +98,9 @@ public class Properties {
 
     public static boolean isSessionCookieSecure() {
         return Boolean.parseBoolean(SESSION_COOKIE_SECURE);
+    }
+
+    public static boolean isRequestLoggingEnabled() {
+        return Boolean.parseBoolean(REQUEST_LOGGING);
     }
 }

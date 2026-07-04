@@ -1,47 +1,143 @@
 # OurMusic
 
-OurMusic is a self-hosted, Navidrome-style music server with a clean library experience, playlist support, and a responsive web UI.
+OurMusic is a self-hosted music server with a modern web player and a Subsonic/OpenSubsonic-compatible API. It scans a local music folder into PostgreSQL, extracts tags and artwork, supports playlists and user accounts, and can be used from Subsonic clients such as Feishin and Supersonic.
 
 ## Tech Stack
 
 - Frontend: Next.js, React, TypeScript, Tailwind CSS
 - Backend: Java, Javalin
 - Database: PostgreSQL
+- Audio metadata: jaudiotagger
+- Optional transcoding: FFmpeg
 
 ## Features
 
-- Drop your music files into a local folder and run a quick full library scan
-- Browse songs, albums, artists, and playlists
-- Play music through a built-in player
-- Fetch song lyrics through `lrclib.net`
-- Manage library and queue interactions
-- User authentication and admin views
+- Scan a local music folder into a structured library
+- Browse songs, albums, artists, genres, and playlists
+- Play tracks in the built-in web player
+- Manage users, sessions, admin access, liked songs, and recently played history
+- Create, update, reorder, and delete playlists
+- Import playlist tracks from `.m3u8` files
+- Upload playlist cover art
+- Fetch lyrics through `lrclib.net`
+- Serve album/song artwork from embedded audio metadata
+- Store richer audio metadata such as bitrate, sample rate, channels, year, track, and disc number
+- Expose a Subsonic/OpenSubsonic API for external music clients
+
+## Subsonic Support
+
+OurMusic implements the core Subsonic routes needed for browsing and playback from compatible clients.
+
+Implemented areas include:
+
+- System: `ping`, `getLicense`, `startScan`, `getScanStatus`, `getOpenSubsonicExtensions`
+- Library browsing: `getMusicFolders`, `getArtists`, `getIndexes`, `getArtist`, `getAlbum`, `getSong`
+- Album lists: `getAlbumList`, `getAlbumList2`
+- Search and discovery: `search3`, `getGenres`, `getSongsByGenre`, `getRandomSongs`
+- Playback and media: `stream`, `download`, `getCoverArt`
+- Playlists: `getPlaylists`, `getPlaylist`, `createPlaylist`, `updatePlaylist`, `deletePlaylist`
+- Stars and scrobbling: `getStarred`, `getStarred2`, `star`, `unstar`, `scrobble`
+- Users: `getUser`, `createUser`, `updateUser`, `deleteUser`
+
+Both `.view` and non-`.view` route variants are registered for Subsonic endpoints. The API supports legacy username/password auth and token/salt auth.
 
 ## How It Works
 
-- The backend scans audio files, reads their metadata, and stores the library in PostgreSQL.
-- Songs are keyed by file path, so rescans update existing entries instead of creating duplicates.
-- The database keeps track of artists, albums, songs, playlists, users, sessions, likes, and recently played history.
-- Lyrics are fetched from `lrclib.net` for authenticated users when a track has metadata available.
+- The backend scans audio files from the configured `songs.folder`.
+- Tags are read from each file and upserted into PostgreSQL.
+- Songs are keyed by file path, so rescans update existing rows instead of duplicating tracks.
+- Embedded artwork is extracted when available and saved into the configured artwork folder.
+- Artists, albums, songs, playlists, users, sessions, likes, recently played history, and play counts are stored in PostgreSQL.
+- The web frontend uses session-based auth, while Subsonic clients authenticate through Subsonic query/form parameters.
 
-## Database Logic
+## Configuration
 
-- The server loads database credentials from `application.properties`, opens one PostgreSQL connection, and creates the schema on startup.
-- Core tables are `artists`, `albums`, `songs`, and `song_artists` for the music library, plus `users`, `sessions`, `playlists`, `playlist_songs`, `liked_songs`, and `recently_played` for app state.
-- A library scan reads every audio file in the configured songs folder, extracts tags and artwork, then upserts the artist, album, and song records.
-- `songs.file_path` is unique, so running a scan again updates the same row instead of duplicating tracks.
-- `song_artists` stores the many-to-many relationship between songs and artists.
-- Playlist order is stored with a `position` column in `playlist_songs`, and the next position is calculated before insert.
-- Sessions are persisted in the database with an expiry time, so login state can be validated server-side and cleared on logout.
-- Likes and recently played history are stored per user, which powers library views like liked songs, recent activity, and most played.
+Copy the example config and fill in local values:
+
+```bash
+cp application.example.properties application.properties
+```
+
+Important settings:
+
+```properties
+db.url=jdbc:postgresql://localhost:5432/ourmusic
+db.user=ourmusic_user
+db.password=
+
+songs.folder=/path/to/music
+artwork.folder=/path/to/artwork
+
+app.port=8808
+cors.allowed.origins=http://localhost:3000
+session.cookie.secure=false
+
+admin.username=admin
+admin.password=ourmusic
+
+ffmpeg.path=/usr/bin/ffmpeg
+subsonic.auth.secret=
+```
+
+Notes:
+
+- Keep `application.properties` private. It can contain database and auth secrets.
+- Set `session.cookie.secure=true` when serving over HTTPS.
+- Set a dedicated `subsonic.auth.secret` for non-local deployments.
+- FFmpeg is only needed for optional transcoding support.
+
+## Running Locally
+
+Install frontend dependencies:
+
+```bash
+npm ci --prefix frontend
+```
+
+Run the frontend:
+
+```bash
+npm run dev --prefix frontend
+```
+
+Compile the backend:
+
+```bash
+mvn -q compile
+```
+
+Run the backend:
+
+```bash
+mvn -q compile exec:java -Dexec.mainClass=Server
+```
+
+By default, the backend runs on the configured `app.port`, usually:
+
+```text
+http://localhost:8808
+```
+
+## Validation
+
+Useful checks before pushing changes:
+
+```bash
+mvn -q clean compile
+npm run lint --prefix frontend
+graphify update .
+```
 
 ## Screenshots
 
 ### Home
+
 ![Home screen](showcase/Home.png)
 
 ### Songs
+
 ![Songs screen](showcase/Songs.png)
 
 ### Playlists
+
 ![Playlists screen](showcase/Playlists.png)

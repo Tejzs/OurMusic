@@ -10,12 +10,16 @@ import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.images.Artwork;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import config.Properties;
 import postgresql.Database;
 import utils.Utils;
 
 public class Scanner {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Scanner.class);
 
     public static void scanLibrary(String songsPath) {
         File songDir = new File(songsPath);
@@ -55,7 +59,7 @@ public class Scanner {
                         byte[] b = artwork.getBinaryData();
                         fileOutputStream.write(b);
                     } catch (Exception e) {
-                        System.out.println(e.getMessage());
+                        LOG.warn("Failed to write artwork for {}", file.getAbsolutePath(), e);
                         artworkPath = null;
                     }
                 }
@@ -80,8 +84,7 @@ public class Scanner {
                     Database.insertSongArtists(song.getId(), artistId);
                 }
             } catch (Exception e) {
-                System.out.println("Failed to scan: " + file.getAbsolutePath());
-                System.out.println(e.getMessage());
+                LOG.warn("Failed to scan {}", file.getAbsolutePath(), e);
             }
         }
     }

@@ -13,7 +13,13 @@ import routes.api.UserRoutes;
 import routes.subsonic.OpenSubsonicRoutes;
 import routes.subsonic.SubsonicTokenSecret;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Server {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Server.class);
+
     public static void main(String[] args) throws Exception {
         Properties.loadConfigurations("application.properties");
         Database.setup();
@@ -25,6 +31,7 @@ public class Server {
         );
 
         Javalin app = Javalin.create(config -> {
+            config.showJavalinBanner = false;
             config.bundledPlugins.enableCors(cors -> {
                 cors.addRule(rule -> {
                     for (String origin : Properties.getCorsAllowedOrigins()) {
@@ -36,15 +43,19 @@ public class Server {
             });
         }).start(Properties.getPort());
 
-        app.after(ctx -> {
-            String queryString = sanitizeQueryString(ctx.queryString());
-            String requestTarget = ctx.path();
-            if (queryString != null && !queryString.isBlank()) {
-                requestTarget += "?" + queryString;
-            }
+        LOG.info("OurMusic backend listening on port {}", Properties.getPort());
 
-            System.out.printf("%s %s -> %s%n", ctx.method(), requestTarget, ctx.status());
-        });
+        if (Properties.isRequestLoggingEnabled()) {
+            app.after(ctx -> {
+                String queryString = sanitizeQueryString(ctx.queryString());
+                String requestTarget = ctx.path();
+                if (queryString != null && !queryString.isBlank()) {
+                    requestTarget += "?" + queryString;
+                }
+
+                LOG.info("{} {} -> {}", ctx.method(), requestTarget, ctx.status());
+            });
+        }
 
         // OurMuic API
         AdminRoutes.register(app);

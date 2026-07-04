@@ -19,12 +19,16 @@ import com.google.gson.JsonParser;
 import config.Properties;
 import io.javalin.Javalin;
 import io.javalin.http.UploadedFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import postgresql.Database;
 import scanner.Playlist;
 import scanner.PlaylistRequest;
 import scanner.Song;
 
 public class PlaylistRoutes {
+    private static final Logger LOG = LoggerFactory.getLogger(PlaylistRoutes.class);
+
     public static void register(Javalin app) {
         app.post("/api/playlists", ctx -> {
             String token = ctx.cookie("ourmusic_session");
@@ -266,8 +270,7 @@ public class PlaylistRoutes {
 
                 Database.setPlaylistCoverart(Integer.valueOf(playlistId), coverPath.toString());
             } catch (Exception e) {
-                System.out.println("Playlist Cover Art Failed To Save");
-                System.out.println(e.getMessage());
+                LOG.warn("Playlist cover art save failed for playlist {} and user {}", playlistId, userId, e);
                 ctx.status(500).json(Map.of("message", "failed to save playlist cover"));
                 return;
             }
@@ -370,7 +373,7 @@ public class PlaylistRoutes {
                 ctx.json(Map.of("imported", imported, "skipped", total - imported));
 
             } catch (Exception e) {
-                System.out.println("Unable to read file");
+                LOG.warn("Playlist m3u8 import failed for playlist {} and user {}", playlistId, userId, e);
             }
         });
     }

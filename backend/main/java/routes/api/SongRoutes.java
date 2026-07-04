@@ -17,11 +17,14 @@ import com.google.gson.Gson;
 
 import config.Properties;
 import io.javalin.Javalin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import postgresql.Database;
 import scanner.Scanner;
 import scanner.Song;
 
 public class SongRoutes {
+    private static final Logger LOG = LoggerFactory.getLogger(SongRoutes.class);
 
     private static final ExecutorService scanExecutor = Executors.newSingleThreadExecutor();
     private static volatile ScanStatus currentStatus = ScanStatus.IDLE;
@@ -34,10 +37,13 @@ public class SongRoutes {
         currentStatus = ScanStatus.RUNNING;
         scanExecutor.submit(() -> {
             try {
+                LOG.info("Starting full library scan");
                 Scanner.scanLibrary(Properties.getSongsFolder());
                 currentStatus = ScanStatus.COMPLETE;
+                LOG.info("Full library scan completed");
             } catch (Exception e) {
                 currentStatus = ScanStatus.FAILED;
+                LOG.warn("Full library scan failed", e);
             }
         });
         return true;
@@ -79,12 +85,16 @@ public class SongRoutes {
             Song song = Database.getSong(Integer.valueOf(ID));
 
             if (song == null) {
+                LOG.warn("Stream requested for missing song {}", ID);
                 ctx.status(404).result("Song not found");
+                return;
             }
 
             File file = new File(song.getFilePath());
             if (!file.exists()) {
+                LOG.warn("Stream file not found for song {} at {}", ID, song.getFilePath());
                 ctx.status(404).result("File not found");
+                return;
             }
 
             String range = ctx.header("Range");
@@ -126,12 +136,16 @@ public class SongRoutes {
             Song song = Database.getSong(Integer.valueOf(ID));
 
             if (song == null) {
+                LOG.warn("Artwork requested for missing song {}", ID);
                 ctx.status(404).result("Song not found");
+                return;
             }
 
             File file = new File(song.getArtworkPath());
             if (!file.exists()) {
+                LOG.warn("Artwork file not found for song {} at {}", ID, song.getArtworkPath());
                 ctx.status(404).result("File not found");
+                return;
             }
 
             ctx.contentType("image/jpg");
@@ -193,10 +207,18 @@ public class SongRoutes {
             }
 
             Song song = Database.getSong(Integer.valueOf(songId));
+            if (song == null) {
+                LOG.warn("Download requested for missing song {}", songId);
+                ctx.status(404).result("Song not found");
+                return;
+            }
+
             File file = new File(song.getFilePath());
 
             if (!file.exists()) {
+                LOG.warn("Download file not found for song {} at {}", songId, song.getFilePath());
                 ctx.status(404).result("File not found");
+                return;
             }
 
             ctx.header("Content-Disposition", "attachment; filename=\"" + file.getName() + "\"");
