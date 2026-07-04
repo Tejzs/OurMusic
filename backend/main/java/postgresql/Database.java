@@ -1505,7 +1505,7 @@ public class Database {
                 SELECT
                     id,
                     name,
-                    cover_path IS NOT NULL AS has_cover
+                    cover_path
                 FROM playlists
                 WHERE user_id = ?
                 ORDER BY name;
@@ -1515,7 +1515,7 @@ public class Database {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Playlist playlist = new Playlist(rs.getInt("id"), rs.getString("name"), rs.getBoolean("has_cover"));
+                Playlist playlist = new Playlist(rs.getInt("id"), rs.getString("name"), hasUsablePlaylistCoverPath(rs.getString("cover_path")));
                 playlists.add(playlist);
             }
         } catch (Exception e) {
@@ -1538,7 +1538,7 @@ public class Database {
                     playlists.changed_at AS changed_at,
                     COUNT(DISTINCT playlist_songs.song_id) AS song_count,
                     COALESCE(SUM(DISTINCT songs.duration_seconds) FILTER (WHERE songs.id IS NOT NULL), 0) AS total_duration,
-                    playlists.cover_path IS NOT NULL AS has_cover
+                    playlists.cover_path AS cover_path
                 FROM playlists
                 JOIN users ON users.id = playlists.user_id
                 LEFT JOIN playlist_songs ON playlist_songs.playlist_id = playlists.id
@@ -1576,7 +1576,7 @@ public class Database {
                     playlists.changed_at AS changed_at,
                     COUNT(DISTINCT playlist_songs.song_id) AS song_count,
                     COALESCE(SUM(DISTINCT songs.duration_seconds) FILTER (WHERE songs.id IS NOT NULL), 0) AS total_duration,
-                    playlists.cover_path IS NOT NULL AS has_cover
+                    playlists.cover_path AS cover_path
                 FROM playlists
                 JOIN users ON users.id = playlists.user_id
                 LEFT JOIN playlist_songs ON playlist_songs.playlist_id = playlists.id
@@ -2239,7 +2239,7 @@ public class Database {
     private static PlaylistInfo mapPlaylistInfo(ResultSet rs, boolean requesterIsAdmin, int requesterUserId) throws SQLException {
         int playlistId = rs.getInt("playlist_id");
         String owner = rs.getString("owner_username");
-        boolean hasCover = rs.getBoolean("has_cover");
+        boolean hasCover = hasUsablePlaylistCoverPath(rs.getString("cover_path"));
         boolean isPublic = rs.getBoolean("is_public");
         int ownerId = hasColumn(rs, "owner_id") ? rs.getInt("owner_id") : requesterUserId;
         boolean readonly = !requesterIsAdmin && ownerId != requesterUserId;
@@ -2258,6 +2258,15 @@ public class Database {
                 coverArt,
                 readonly
         );
+    }
+
+    private static boolean hasUsablePlaylistCoverPath(String coverPath) {
+        if (coverPath == null || coverPath.isBlank()) {
+            return false;
+        }
+
+        File file = new File(coverPath);
+        return file.exists() && file.isFile() && file.length() > 0;
     }
 
     private static boolean hasColumn(ResultSet rs, String columnName) {

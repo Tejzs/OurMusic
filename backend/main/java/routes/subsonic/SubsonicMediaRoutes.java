@@ -273,7 +273,6 @@ public final class SubsonicMediaRoutes {
             }
 
             Song artworkSong = Database.getSong(requestedId);
-            String directArtworkPath = null;
             if (artworkSong == null) {
                 Album album = Database.getAlbumById(requestedId);
                 if (album != null && album.getArtworkSongId() > 0) {
@@ -282,15 +281,11 @@ public final class SubsonicMediaRoutes {
             }
 
             if (artworkSong == null || isBlank(artworkSong.getArtworkPath())) {
-                directArtworkPath = Database.getPlaylistCoverartPath(requestedId);
-            }
-
-            if ((artworkSong == null || isBlank(artworkSong.getArtworkPath())) && isBlank(directArtworkPath)) {
                 SubsonicResponses.writeError(ctx, 404, 70, "Cover art not found.");
                 return;
             }
 
-            File file = new File(!isBlank(directArtworkPath) ? directArtworkPath : artworkSong.getArtworkPath());
+            File file = new File(artworkSong.getArtworkPath());
             if (!file.exists()) {
                 SubsonicResponses.writeError(ctx, 404, 70, "Cover art file not found.");
                 return;
