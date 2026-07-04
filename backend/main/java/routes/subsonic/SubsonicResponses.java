@@ -102,6 +102,36 @@ public final class SubsonicResponses {
         ctx.result(xml.toString());
     }
 
+    public static void writeScanStatus(Context ctx, boolean scanning, int count) {
+        Map<String, Object> scanStatus = new LinkedHashMap<>();
+        scanStatus.put("scanning", scanning);
+        scanStatus.put("count", Math.max(0, count));
+
+        Map<String, Object> payload = baseResponse("ok");
+        payload.put("scanStatus", scanStatus);
+
+        String format = requestedFormat(ctx);
+        if ("json".equalsIgnoreCase(format)) {
+            ctx.status(200);
+            applyUtf8ContentType(ctx, "application/json");
+            ctx.result(GSON.toJson(Map.of("subsonic-response", payload)));
+            return;
+        }
+
+        ctx.status(200);
+        applyUtf8ContentType(ctx, "application/xml");
+        StringBuilder xml = new StringBuilder();
+        xml.append(xmlDeclaration());
+        xml.append(openRoot(payload));
+        xml.append(">");
+        xml.append("<scanStatus");
+        xml.append(" scanning=\"").append(scanning).append("\"");
+        xml.append(" count=\"").append(Math.max(0, count)).append("\"");
+        xml.append("/>");
+        xml.append("</subsonic-response>");
+        ctx.result(xml.toString());
+    }
+
     public static void writeMusicFolders(Context ctx, List<Map<String, Object>> musicFolders) {
         Map<String, Object> payload = baseResponse("ok");
         payload.put("musicFolders", Map.of("musicFolder", musicFolders));
@@ -668,11 +698,19 @@ public final class SubsonicResponses {
     }
 
     public static void writeStarred(Context ctx, List<scanner.Song> songs) {
+        writeStarredResponse(ctx, songs, "starred");
+    }
+
+    public static void writeStarred2(Context ctx, List<scanner.Song> songs) {
+        writeStarredResponse(ctx, songs, "starred2");
+    }
+
+    private static void writeStarredResponse(Context ctx, List<scanner.Song> songs, String responseName) {
         Map<String, Object> starredPayload = new LinkedHashMap<>();
         starredPayload.put("song", songs.stream().map(SubsonicResponses::toSongPayload).toList());
 
         Map<String, Object> payload = baseResponse("ok");
-        payload.put("starred", starredPayload);
+        payload.put(responseName, starredPayload);
 
         String format = requestedFormat(ctx);
         if ("json".equalsIgnoreCase(format)) {
@@ -688,11 +726,11 @@ public final class SubsonicResponses {
         xml.append(xmlDeclaration());
         xml.append(openRoot(payload));
         xml.append(">");
-        xml.append("<starred>");
+        xml.append("<").append(responseName).append(">");
         for (scanner.Song song : songs) {
             appendSongElement(xml, song);
         }
-        xml.append("</starred>");
+        xml.append("</").append(responseName).append(">");
         xml.append("</subsonic-response>");
         ctx.result(xml.toString());
     }
@@ -891,6 +929,13 @@ public final class SubsonicResponses {
         if (song.getFileSize() > 0) {
             payload.put("size", song.getFileSize());
         }
+        putIfPositive(payload, "bitRate", song.getBitRate());
+        putIfPositive(payload, "samplingRate", song.getSamplingRate());
+        putIfPositive(payload, "channelCount", song.getChannelCount());
+        putIfPositive(payload, "bitDepth", song.getBitDepth());
+        putIfPositive(payload, "year", song.getYear());
+        putIfPositive(payload, "track", song.getTrack());
+        putIfPositive(payload, "discNumber", song.getDiscNumber());
         putIfNotBlank(payload, "contentType", contentType);
         putIfNotBlank(payload, "suffix", suffix);
         putIfNotBlank(payload, "path", fileName);
@@ -978,6 +1023,13 @@ public final class SubsonicResponses {
         if (song.getFileSize() > 0) {
             xml.append(" size=\"").append(song.getFileSize()).append("\"");
         }
+        appendPositiveXmlAttribute(xml, "bitRate", song.getBitRate());
+        appendPositiveXmlAttribute(xml, "samplingRate", song.getSamplingRate());
+        appendPositiveXmlAttribute(xml, "channelCount", song.getChannelCount());
+        appendPositiveXmlAttribute(xml, "bitDepth", song.getBitDepth());
+        appendPositiveXmlAttribute(xml, "year", song.getYear());
+        appendPositiveXmlAttribute(xml, "track", song.getTrack());
+        appendPositiveXmlAttribute(xml, "discNumber", song.getDiscNumber());
         appendXmlAttribute(xml, "contentType", contentType);
         appendXmlAttribute(xml, "suffix", suffix);
         appendXmlAttribute(xml, "path", fileName);
@@ -991,6 +1043,18 @@ public final class SubsonicResponses {
     private static void putIfNotBlank(Map<String, Object> payload, String key, String value) {
         if (value != null && !value.isBlank()) {
             payload.put(key, value);
+        }
+    }
+
+    private static void putIfPositive(Map<String, Object> payload, String key, Integer value) {
+        if (value != null && value > 0) {
+            payload.put(key, value);
+        }
+    }
+
+    private static void appendPositiveXmlAttribute(StringBuilder xml, String key, Integer value) {
+        if (value != null && value > 0) {
+            xml.append(" ").append(key).append("=\"").append(value).append("\"");
         }
     }
 

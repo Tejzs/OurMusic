@@ -2,6 +2,9 @@ package routes.subsonic;
 
 import auth.User;
 import io.javalin.Javalin;
+import postgresql.Database;
+import routes.api.ScanStatus;
+import routes.api.SongRoutes;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +38,30 @@ public final class SubsonicSystemRoutes {
             }
 
             SubsonicResponses.writeLicense(ctx, true, LICENSE_EMAIL, LICENSE_EXPIRES, TRIAL_EXPIRES);
+        });
+
+        SubsonicRequest.register(app, "/rest/startScan.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
+                return;
+            }
+            if (!user.isAdmin()) {
+                SubsonicResponses.writeError(ctx, 403, 50, "Not authorized to start scan.");
+                return;
+            }
+
+            SongRoutes.startFullLibraryScan();
+            SubsonicResponses.writeScanStatus(ctx, true, Database.getSongCount());
+        });
+
+        SubsonicRequest.register(app, "/rest/getScanStatus.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
+                return;
+            }
+
+            boolean scanning = SongRoutes.getScanStatus() == ScanStatus.RUNNING;
+            SubsonicResponses.writeScanStatus(ctx, scanning, Database.getSongCount());
         });
 
         SubsonicRequest.register(app, "/rest/getOpenSubsonicExtensions.view", ctx ->

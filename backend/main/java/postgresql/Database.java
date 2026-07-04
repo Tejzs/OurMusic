@@ -70,11 +70,25 @@ public class Database {
                     file_size BIGINT,
                     file_modified_time BIGINT,
                     artwork_path TEXT,
+                    bit_rate INT,
+                    sampling_rate INT,
+                    channel_count INT,
+                    bit_depth INT,
+                    year INT,
+                    track_number INT,
+                    disc_number INT,
                     FOREIGN KEY (album_id) REFERENCES albums(id)
                 );
                 """;
         connection.prepareStatement(songsTable).execute();
         connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS genre TEXT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS bit_rate INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS sampling_rate INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS channel_count INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS bit_depth INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS year INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS track_number INT;").execute();
+        connection.prepareStatement("ALTER TABLE songs ADD COLUMN IF NOT EXISTS disc_number INT;").execute();
 
         String songArtistsTable = """
                 CREATE TABLE IF NOT EXISTS song_artists (
@@ -178,9 +192,16 @@ public class Database {
                     file_path,
                     file_size,
                     file_modified_time,
-                    artwork_path
+                    artwork_path,
+                    bit_rate,
+                    sampling_rate,
+                    channel_count,
+                    bit_depth,
+                    year,
+                    track_number,
+                    disc_number
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (file_path)
                 DO UPDATE SET
                     title = EXCLUDED.title,
@@ -189,7 +210,14 @@ public class Database {
                     duration_seconds = EXCLUDED.duration_seconds,
                     file_size = EXCLUDED.file_size,
                     file_modified_time = EXCLUDED.file_modified_time,
-                    artwork_path = EXCLUDED.artwork_path
+                    artwork_path = EXCLUDED.artwork_path,
+                    bit_rate = EXCLUDED.bit_rate,
+                    sampling_rate = EXCLUDED.sampling_rate,
+                    channel_count = EXCLUDED.channel_count,
+                    bit_depth = EXCLUDED.bit_depth,
+                    year = EXCLUDED.year,
+                    track_number = EXCLUDED.track_number,
+                    disc_number = EXCLUDED.disc_number
                 RETURNING id;
                 """;
 
@@ -203,12 +231,52 @@ public class Database {
         stmt.setLong(6, song.getFileSize());
         stmt.setLong(7, song.getLastModified());
         stmt.setString(8, song.getArtworkPath());
+        stmt.setObject(9, song.getBitRate());
+        stmt.setObject(10, song.getSamplingRate());
+        stmt.setObject(11, song.getChannelCount());
+        stmt.setObject(12, song.getBitDepth());
+        stmt.setObject(13, song.getYear());
+        stmt.setObject(14, song.getTrack());
+        stmt.setObject(15, song.getDiscNumber());
 
         ResultSet rs = stmt.executeQuery();
 
         if (rs.next()) {
             song.setId(rs.getInt("id"));
         }
+    }
+
+    private static Song mapSong(ResultSet rs) throws SQLException {
+        Song song = new Song(
+                rs.getString("song_title"),
+                rs.getString("artist_name"),
+                rs.getString("album_title"),
+                rs.getString("genre"),
+                rs.getInt("album_id"),
+                rs.getInt("duration_seconds"),
+                rs.getString("file_path"),
+                rs.getLong("file_size"),
+                rs.getLong("file_modified_time"),
+                rs.getString("artwork_path"),
+                nullableInteger(rs, "bit_rate"),
+                nullableInteger(rs, "sampling_rate"),
+                nullableInteger(rs, "channel_count"),
+                nullableInteger(rs, "bit_depth"),
+                nullableInteger(rs, "year"),
+                nullableInteger(rs, "track_number"),
+                nullableInteger(rs, "disc_number")
+        );
+        song.setId(rs.getInt("song_id"));
+        return song;
+    }
+
+    private static Integer nullableInteger(ResultSet rs, String columnName) throws SQLException {
+        if (!hasColumn(rs, columnName)) {
+            return null;
+        }
+
+        int value = rs.getInt(columnName);
+        return rs.wasNull() ? null : value;
     }
 
     public static Song getSong(int id) {
@@ -224,7 +292,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -240,8 +315,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 return song;
             }
         } catch (Exception e) {
@@ -274,7 +348,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -308,8 +389,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -339,7 +419,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -362,8 +449,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -389,7 +475,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -414,8 +507,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -547,7 +639,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -566,9 +665,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -901,7 +998,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists ON song_artists.song_id = songs.id
@@ -917,9 +1021,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -1024,7 +1126,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM songs
                 JOIN albums ON songs.album_id = albums.id
                 JOIN song_artists filter_sa ON filter_sa.song_id = songs.id
@@ -1041,8 +1150,7 @@ public class Database {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
             return songs;
@@ -1684,6 +1792,13 @@ public class Database {
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
                     songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number,
                     playlist_songs.position AS position
                 FROM playlist_songs
                 JOIN songs ON playlist_songs.song_id = songs.id
@@ -1699,8 +1814,7 @@ public class Database {
             stmt.setInt(1, playlistId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1824,7 +1938,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM liked_songs
                 JOIN songs ON liked_songs.song_id = songs.id
                 JOIN albums ON songs.album_id = albums.id
@@ -1839,8 +1960,7 @@ public class Database {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1893,7 +2013,14 @@ public class Database {
                     songs.file_path AS file_path,
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
-                    songs.artwork_path AS artwork_path
+                    songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number
                 FROM recently_played
                 JOIN songs ON recently_played.song_id = songs.id
                 JOIN albums ON songs.album_id = albums.id
@@ -1912,8 +2039,7 @@ public class Database {
             stmt.setInt(3, offset);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 songs.add(song);
             }
         } catch (Exception e) {
@@ -1938,6 +2064,13 @@ public class Database {
                     songs.file_size AS file_size,
                     songs.file_modified_time AS file_modified_time,
                     songs.artwork_path AS artwork_path,
+                    songs.bit_rate AS bit_rate,
+                    songs.sampling_rate AS sampling_rate,
+                    songs.channel_count AS channel_count,
+                    songs.bit_depth AS bit_depth,
+                    songs.year AS year,
+                    songs.track_number AS track_number,
+                    songs.disc_number AS disc_number,
                     COUNT(*) AS play_count
                 FROM recently_played
                 JOIN songs ON recently_played.song_id = songs.id
@@ -1957,8 +2090,7 @@ public class Database {
             stmt.setInt(3, offset);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                Song song = new Song(rs.getString("song_title"), rs.getString("artist_name"), rs.getString("album_title"), rs.getString("genre"), rs.getInt("album_id"), rs.getInt("duration_seconds"), rs.getString("file_path"), rs.getLong("file_size"), rs.getLong("file_modified_time"), rs.getString("artwork_path"));
-                song.setId(rs.getInt("song_id"));
+                Song song = mapSong(rs);
                 mostPlayedSongs.add(new MostPlayedSong(song, rs.getInt("play_count")));
             }
         } catch (Exception e) {
@@ -2008,6 +2140,24 @@ public class Database {
             System.out.println(e.getMessage());
         }
         return null;
+    }
+
+    public static int getSongCount() {
+        String sql = """
+                SELECT COUNT(*) AS song_count
+                FROM songs;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("song_count");
+            }
+        } catch (Exception e) {
+            System.out.println("Get song count failed");
+            System.out.println(e.getMessage());
+        }
+        return 0;
     }
 
     public static Song getSongInfo(int songId) {

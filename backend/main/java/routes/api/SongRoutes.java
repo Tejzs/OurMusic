@@ -26,6 +26,26 @@ public class SongRoutes {
     private static final ExecutorService scanExecutor = Executors.newSingleThreadExecutor();
     private static volatile ScanStatus currentStatus = ScanStatus.IDLE;
 
+    public static boolean startFullLibraryScan() {
+        if (currentStatus == ScanStatus.RUNNING) {
+            return false;
+        }
+
+        currentStatus = ScanStatus.RUNNING;
+        scanExecutor.submit(() -> {
+            try {
+                Scanner.scanLibrary(Properties.getSongsFolder());
+                currentStatus = ScanStatus.COMPLETE;
+            } catch (Exception e) {
+                currentStatus = ScanStatus.FAILED;
+            }
+        });
+        return true;
+    }
+
+    public static ScanStatus getScanStatus() {
+        return currentStatus;
+    }
 
     public static void register(Javalin app) {
         app.get("/api/songs", ctx -> {
@@ -47,19 +67,10 @@ public class SongRoutes {
         });
 
         app.post("/api/library/scan/full", ctx -> {
-            if (currentStatus == ScanStatus.RUNNING) {
+            if (!startFullLibraryScan()) {
                 ctx.status(409).json(Map.of("error", "Scan already in progress"));
                 return;
             }
-            currentStatus = ScanStatus.RUNNING;
-            scanExecutor.submit(() -> {
-                try {
-                    Scanner.scanLibrary(Properties.getSongsFolder());
-                    currentStatus = ScanStatus.COMPLETE;
-                } catch (Exception e) {
-                    currentStatus = ScanStatus.FAILED;
-                }
-            });
             ctx.json(Map.of("status", "ok", "message", "Started"));
         });
 

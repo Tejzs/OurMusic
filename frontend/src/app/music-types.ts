@@ -46,6 +46,13 @@ export type Song = {
   album: string;
   genre?: string | null;
   duration: number;
+  bitRate?: number | null;
+  samplingRate?: number | null;
+  channelCount?: number | null;
+  bitDepth?: number | null;
+  year?: number | null;
+  track?: number | null;
+  discNumber?: number | null;
 };
 
 export type SongLyrics = {

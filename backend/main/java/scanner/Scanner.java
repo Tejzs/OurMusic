@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.AudioHeader;
 import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.images.Artwork;
@@ -59,12 +60,20 @@ public class Scanner {
                     }
                 }
 
-                int duration = audioFile.getAudioHeader().getTrackLength();
+                AudioHeader audioHeader = audioFile.getAudioHeader();
+                int duration = audioHeader.getTrackLength();
                 String filePath = audioFile.getFile().getPath();
                 long fileSize = audioFile.getFile().length();
                 long lastModified = audioFile.getFile().lastModified();
+                Integer bitRate = positiveInt(audioHeader.getBitRateAsNumber());
+                Integer samplingRate = positiveInt(audioHeader.getSampleRateAsNumber());
+                Integer channelCount = parseChannelCount(audioHeader.getChannels());
+                Integer bitDepth = positiveInt(audioHeader.getBitsPerSample());
+                Integer year = tag != null ? parseTagNumber(tag.getFirst(FieldKey.YEAR)) : null;
+                Integer track = tag != null ? parseTagNumber(tag.getFirst(FieldKey.TRACK)) : null;
+                Integer discNumber = tag != null ? parseTagNumber(tag.getFirst(FieldKey.DISC_NO)) : null;
 
-                Song song = new Song(title, String.join(", ", artists), album, genre, albumId, duration, filePath, fileSize, lastModified, artworkPath);
+                Song song = new Song(title, String.join(", ", artists), album, genre, albumId, duration, filePath, fileSize, lastModified, artworkPath, bitRate, samplingRate, channelCount, bitDepth, year, track, discNumber);
                 Database.insertSong(song);
                 for (String artist : artists) {
                     int artistId = Database.getArtist(artist.trim());
@@ -74,6 +83,54 @@ public class Scanner {
                 System.out.println("Failed to scan: " + file.getAbsolutePath());
                 System.out.println(e.getMessage());
             }
+        }
+    }
+
+    private static Integer positiveInt(long value) {
+        return value > 0 && value <= Integer.MAX_VALUE ? (int) value : null;
+    }
+
+    private static Integer parseChannelCount(String channels) {
+        if (channels == null || channels.isBlank()) {
+            return null;
+        }
+
+        String normalizedChannels = channels.trim().toLowerCase();
+        if (normalizedChannels.contains("mono")) {
+            return 1;
+        }
+        if (normalizedChannels.contains("stereo")) {
+            return 2;
+        }
+
+        return parseTagNumber(normalizedChannels);
+    }
+
+    private static Integer parseTagNumber(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        StringBuilder digits = new StringBuilder();
+        for (int i = 0; i < trimmed.length(); i++) {
+            char current = trimmed.charAt(i);
+            if (Character.isDigit(current)) {
+                digits.append(current);
+            } else if (!digits.isEmpty()) {
+                break;
+            }
+        }
+
+        if (digits.isEmpty()) {
+            return null;
+        }
+
+        try {
+            int parsed = Integer.parseInt(digits.toString());
+            return parsed > 0 ? parsed : null;
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

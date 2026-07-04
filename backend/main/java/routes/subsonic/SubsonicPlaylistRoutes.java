@@ -179,6 +179,31 @@ public final class SubsonicPlaylistRoutes {
 
             SubsonicResponses.writePlaylist(ctx, playlist, Database.getSongsPlaylist(playlistId));
         });
+
+        SubsonicRequest.register(app, "/rest/deletePlaylist.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
+                return;
+            }
+
+            Integer playlistId = parseRequiredId(ctx, "id");
+            if (playlistId == null) {
+                return;
+            }
+
+            if (!Database.verifyPlaylist(user.getId(), playlistId)) {
+                SubsonicResponses.writeError(ctx, 403, 50, "Not authorized to delete this playlist.");
+                return;
+            }
+
+            boolean deleted = Database.deletePlaylist(playlistId, user.getId());
+            if (!deleted) {
+                SubsonicResponses.writeError(ctx, 404, 70, "Playlist not found.");
+                return;
+            }
+
+            SubsonicResponses.writeSuccess(ctx);
+        });
     }
 
     private static User resolveTargetUser(Context ctx, User authenticatedUser) {

@@ -185,6 +185,16 @@ public final class SubsonicLibraryRoutes {
             SubsonicResponses.writeStarred(ctx, songs);
         });
 
+        SubsonicRequest.register(app, "/rest/getStarred2.view", ctx -> {
+            User user = SubsonicAuth.authenticate(ctx);
+            if (user == null) {
+                return;
+            }
+
+            List<Song> songs = Database.getAllLikedSongs(user.getId());
+            SubsonicResponses.writeStarred2(ctx, songs);
+        });
+
         SubsonicRequest.register(app, "/rest/star.view", ctx -> {
             User user = SubsonicAuth.authenticate(ctx);
             if (user == null) {
