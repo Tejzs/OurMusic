@@ -15,7 +15,7 @@ import routes.subsonic.SubsonicTokenSecret;
 
 public class Server {
     public static void main(String[] args) throws Exception {
-        Properties.loadConfigurations("backend/main/java/application.properties");
+        Properties.loadConfigurations("application.properties");
         Database.setup();
         Database.init();
         Database.ensureAdminUser(

@@ -10,7 +10,7 @@ Thumbs.db
 target/
 *.class
 *.log
-backend/main/java/application.properties
+application.properties
 backend/main/resources/artwork/
 
 # Next.js / frontend
