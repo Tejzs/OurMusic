@@ -38,7 +38,13 @@ public class AdminRoutes {
             List<User> users = Database.getAllUsers();
             Gson gson = new Gson();
             ctx.contentType("application/json");
-            ctx.result(gson.toJson(users));
+            ctx.result(gson.toJson(users.stream()
+                    .map(adminUser -> Map.<String, Object>of(
+                            "id", adminUser.getId(),
+                            "username", adminUser.getUsername(),
+                            "isAdmin", adminUser.isAdmin()
+                    ))
+                    .toList()));
         });
 
         app.delete("/api/admin/users/{ID}", ctx -> {

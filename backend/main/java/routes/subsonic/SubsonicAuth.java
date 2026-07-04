@@ -87,7 +87,7 @@ public final class SubsonicAuth {
         }
     }
 
-    private static String normalizePassword(String password) {
+    static String normalizePassword(String password) {
         if (!password.startsWith("enc:")) {
             return password;
         }

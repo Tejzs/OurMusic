@@ -1575,6 +1575,25 @@ public class Database {
         return false;
     }
 
+    public static boolean changeAdminRole(int id, boolean isAdmin) {
+        String sql = """
+                UPDATE users
+                SET is_admin = ?
+                WHERE id = ?;
+                """;
+        try {
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setBoolean(1, isAdmin);
+            stmt.setInt(2, id);
+            int row = stmt.executeUpdate();
+            return row > 0;
+        } catch (Exception e) {
+            System.out.println("Update admin role failed");
+            System.out.println(e.getMessage());
+        }
+        return false;
+    }
+
     public static int createPlaylist(int userId, String playlistName) {
         return createPlaylist(userId, playlistName, "", false);
     }
