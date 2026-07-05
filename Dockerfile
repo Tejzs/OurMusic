@@ -1,5 +1,7 @@
 FROM eclipse-temurin:21-jre
 
+LABEL me.tejzs.project="ourmusic"
+
 WORKDIR /app
 
 COPY target/OurMusic-0.1.0.jar /app/ourmusic.jar
