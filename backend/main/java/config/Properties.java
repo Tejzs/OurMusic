@@ -1,7 +1,5 @@
 package config;
 
-import java.io.FileInputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,31 +23,37 @@ public class Properties {
     
     private static final Logger LOG = LoggerFactory.getLogger(Properties.class);
 
-    public static void loadConfigurations(String path) {
+    public static void loadConfigurations() {
         java.util.Properties props = new java.util.Properties();
 
-        try (FileInputStream fis = new FileInputStream(path)) {
-            props.load(fis);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        DB_URL = props.getProperty("db.url");
-        DB_USERNAME = props.getProperty("db.user");
-        DB_PASSWORD = props.getProperty("db.password");
+        DB_URL = getConfig(props, "DB_URL", "db.url");
+        DB_USERNAME = getConfig(props, "DB_USER", "db.user");
+        DB_PASSWORD = getConfig(props, "DB_PASSWORD", "db.password");
 
-        SONGS_FOLDER = props.getProperty("songs.folder");
-        ARTWORK_FOLDER = props.getProperty("artwork.folder");
+        SONGS_FOLDER = getConfig(props, "SONGS_FOLDER", "songs.folder");
+        ARTWORK_FOLDER = getConfig(props, "ARTWORK_FOLDER", "artwork.folder");
 
-        PORT = props.getProperty("app.port");
-        SUBSONIC_AUTH_SECRET = props.getProperty("subsonic.auth.secret");
-        ADMIN_USERNAME = props.getProperty("admin.username");
-        ADMIN_PASSWORD = props.getProperty("admin.password");
-        FFMPEG_PATH = props.getProperty("ffmpeg.path", "ffmpeg");
-        CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins", "http://localhost:3000");
-        SESSION_COOKIE_SECURE = props.getProperty("session.cookie.secure", "false");
-        REQUEST_LOGGING = props.getProperty("request.logging.enabled", "false");
+        PORT = getConfig(props, "APP_PORT", "app.port");
+
+        ADMIN_USERNAME = getConfig(props, "ADMIN_USERNAME", "admin.username");
+        ADMIN_PASSWORD = getConfig(props, "ADMIN_PASSWORD", "admin.password");
+
+        FFMPEG_PATH = getConfig(props, "FFMPEG_PATH", "ffmpeg.path");
+        SUBSONIC_AUTH_SECRET = getConfig(props, "SUBSONIC_AUTH_SECRET", "subsonic.auth.secret");
+
+        CORS_ALLOWED_ORIGINS = getConfig(props, "CORS_ALLOWED_ORIGINS", "cors.allowed.origins");
+        SESSION_COOKIE_SECURE = getConfig(props, "SESSION_COOKIE_SECURE", "session.cookie.secure");
+        REQUEST_LOGGING = getConfig(props, "REQUEST_LOGGING_ENABLED", "request.logging.enabled");
 
         LOG.info("Properties loaded");
+    }
+
+    private static String getConfig(java.util.Properties props, String envKey, String propertyKey) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isBlank()) {
+            return envValue;
+        }
+        return props.getProperty(propertyKey);
     }
 
     public static String getDBURL() {

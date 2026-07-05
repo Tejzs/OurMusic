@@ -52,38 +52,43 @@ Both `.view` and non-`.view` route variants are registered for Subsonic endpoint
 
 ## Configuration
 
-Copy the example config and fill in local values:
+OurMusic is configured through environment variables. Copy the example environment file and fill in your values:
 
 ```bash
-cp application.example.properties application.properties
+cp .env.example .env
 ```
 
 Important settings:
 
-```properties
-db.url=jdbc:postgresql://localhost:5432/ourmusic
-db.user=ourmusic_user
-db.password=
+```env
+OURMUSIC_PORT=8808
 
-songs.folder=/path/to/music
-artwork.folder=/path/to/artwork
+POSTGRES_DB=ourmusic
+POSTGRES_USER=ourmusic_user
+POSTGRES_PASSWORD=change_me
 
-app.port=8808
-cors.allowed.origins=http://localhost:3000
-session.cookie.secure=false
+MUSIC_PATH=/path/to/music
+ARTWORK_PATH=/path/to/ourmusic-artwork
 
-admin.username=admin
-admin.password=ourmusic
+APP_PORT=8808
+CORS_ALLOWED_ORIGINS=http://localhost:3000
+SESSION_COOKIE_SECURE=false
 
-ffmpeg.path=/usr/bin/ffmpeg
-subsonic.auth.secret=
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change_me
+
+FFMPEG_PATH=
+SUBSONIC_AUTH_SECRET=
+REQUEST_LOGGING_ENABLED=false
 ```
 
 Notes:
 
-- Keep `application.properties` private. It can contain database and auth secrets.
-- Set `session.cookie.secure=true` when serving over HTTPS.
-- Set a dedicated `subsonic.auth.secret` for non-local deployments.
+- Keep `.env` private. It contains database and admin credentials.
+- In Docker, `MUSIC_PATH` and `ARTWORK_PATH` are host paths mounted into the backend container as `/music` and `/artwork`.
+- In Docker, the backend connects to PostgreSQL through the Compose service name `db`, not `localhost`.
+- Set `SESSION_COOKIE_SECURE=true` when serving over HTTPS.
+- Set a dedicated `SUBSONIC_AUTH_SECRET` for non-local deployments.
 - FFmpeg is only needed for optional transcoding support.
 
 ## Running Locally
@@ -109,6 +114,9 @@ mvn -q compile
 Run the backend:
 
 ```bash
+set -a
+source .env
+set +a
 mvn -q compile exec:java -Dexec.mainClass=Server
 ```
 
@@ -118,14 +126,54 @@ By default, the backend runs on the configured `app.port`, usually:
 http://localhost:8808
 ```
 
-## Validation
+## Running With Docker
 
-Useful checks before pushing changes:
+Create and edit the required environment file:
 
 ```bash
-mvn -q clean compile
-npm run lint --prefix frontend
-graphify update .
+cp .env.example .env
+```
+
+Start the backend and PostgreSQL:
+
+```bash
+make docker-up
+```
+
+Check running containers:
+
+```bash
+make docker-ps
+```
+
+View backend logs:
+
+```bash
+make docker-logs
+```
+
+Rebuild after backend code changes:
+
+```bash
+make docker-restart
+```
+
+Test the Subsonic ping endpoint:
+
+```bash
+curl "http://localhost:8808/rest/ping.view?u=admin&p=ourmusic&v=1.16.1&c=test&f=json"
+```
+
+Stop the Docker stack:
+
+```bash
+make docker-down
+```
+
+PostgreSQL data is stored in the `ourmusic_postgres_data` Docker volume. To delete the database and start fresh:
+
+```bash
+docker compose down -v
 ```
 
 ## Screenshots
