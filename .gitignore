@@ -4,10 +4,14 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+.project
+.settings/
+.factorypath
 
 # Java / Maven
 .mvn
 target/
+dependency-reduced-pom.xml
 *.class
 *.log
 application.properties
