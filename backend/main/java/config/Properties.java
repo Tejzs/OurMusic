@@ -1,5 +1,8 @@
 package config;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,23 +23,29 @@ public class Properties {
     private static String SESSION_COOKIE_SECURE;
 
     private static String REQUEST_LOGGING;
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(Properties.class);
 
-    public static void loadConfigurations() {
+    public static void loadConfigurations(String path) {
+
         java.util.Properties props = new java.util.Properties();
+        try (FileInputStream input = new FileInputStream(path)) {
+            if (input != null) {
+                props.load(input);
+            }
+        } catch (Exception IGNORED) {}
 
         DB_URL = getConfig(props, "DB_URL", "db.url");
         DB_USERNAME = getConfig(props, "DB_USER", "db.user");
         DB_PASSWORD = getConfig(props, "DB_PASSWORD", "db.password");
 
-        SONGS_FOLDER = getConfig(props, "SONGS_FOLDER", "songs.folder");
-        ARTWORK_FOLDER = getConfig(props, "ARTWORK_FOLDER", "artwork.folder");
+        SONGS_FOLDER = getConfig(props, "MUSIC_PATH", "music.path");
+        ARTWORK_FOLDER = getConfig(props, "ARTWORK_PATH", "artwork.path");
 
-        PORT = getConfig(props, "APP_PORT", "app.port");
+        PORT = getConfig(props, "OURMUSIC_PORT", "ourmusic.port");
 
-        ADMIN_USERNAME = getConfig(props, "ADMIN_USERNAME", "admin.username");
         ADMIN_PASSWORD = getConfig(props, "ADMIN_PASSWORD", "admin.password");
+        ADMIN_USERNAME = getConfig(props, "ADMIN_USERNAME", "admin.username");
 
         FFMPEG_PATH = getConfig(props, "FFMPEG_PATH", "ffmpeg.path");
         SUBSONIC_AUTH_SECRET = getConfig(props, "SUBSONIC_AUTH_SECRET", "subsonic.auth.secret");
