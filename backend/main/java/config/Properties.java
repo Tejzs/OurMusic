@@ -1,7 +1,6 @@
 package config;
 
 import java.io.FileInputStream;
-import java.io.InputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +10,8 @@ public class Properties {
     private static String DB_USERNAME;
     private static String DB_PASSWORD;
 
-    private static String SONGS_FOLDER;
-    private static String ARTWORK_FOLDER;
+    private static String MUSIC_PATH;
+    private static String ARTWORK_PATH;
 
     private static String PORT;
     private static String SUBSONIC_AUTH_SECRET;
@@ -39,8 +38,8 @@ public class Properties {
         DB_USERNAME = getConfig(props, "DB_USER", "db.user");
         DB_PASSWORD = getConfig(props, "DB_PASSWORD", "db.password");
 
-        SONGS_FOLDER = getConfig(props, "MUSIC_PATH", "music.path");
-        ARTWORK_FOLDER = getConfig(props, "ARTWORK_PATH", "artwork.path");
+        MUSIC_PATH = getConfig(props, "MUSIC_PATH", "music.path");
+        ARTWORK_PATH = getConfig(props, "ARTWORK_PATH", "artwork.path");
 
         PORT = getConfig(props, "OURMUSIC_PORT", "ourmusic.port");
 
@@ -78,11 +77,11 @@ public class Properties {
     }
 
     public static String getSongsFolder() {
-        return SONGS_FOLDER;
+        return MUSIC_PATH;
     }
 
     public static String getSongsArtworkFolder() {
-        return ARTWORK_FOLDER;
+        return ARTWORK_PATH;
     }
 
     public static int getPort() {
