@@ -4,13 +4,16 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+.project
+.settings/
+.factorypath
 
 # Java / Maven
 .mvn
 target/
+dependency-reduced-pom.xml
 *.class
 *.log
-application.properties
 backend/main/resources/artwork/
 
 # Next.js / frontend
@@ -43,3 +46,4 @@ AGENTS.md
 
 SUBSONIC_VERSION.md
 .classpath
+application.properties

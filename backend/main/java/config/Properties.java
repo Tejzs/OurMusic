@@ -10,8 +10,8 @@ public class Properties {
     private static String DB_USERNAME;
     private static String DB_PASSWORD;
 
-    private static String SONGS_FOLDER;
-    private static String ARTWORK_FOLDER;
+    private static String MUSIC_PATH;
+    private static String ARTWORK_PATH;
 
     private static String PORT;
     private static String SUBSONIC_AUTH_SECRET;
@@ -22,34 +22,46 @@ public class Properties {
     private static String SESSION_COOKIE_SECURE;
 
     private static String REQUEST_LOGGING;
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(Properties.class);
 
     public static void loadConfigurations(String path) {
+
         java.util.Properties props = new java.util.Properties();
+        try (FileInputStream input = new FileInputStream(path)) {
+            if (input != null) {
+                props.load(input);
+            }
+        } catch (Exception IGNORED) {}
 
-        try (FileInputStream fis = new FileInputStream(path)) {
-            props.load(fis);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        DB_URL = props.getProperty("db.url");
-        DB_USERNAME = props.getProperty("db.user");
-        DB_PASSWORD = props.getProperty("db.password");
+        DB_URL = getConfig(props, "DB_URL", "db.url");
+        DB_USERNAME = getConfig(props, "DB_USER", "db.user");
+        DB_PASSWORD = getConfig(props, "DB_PASSWORD", "db.password");
 
-        SONGS_FOLDER = props.getProperty("songs.folder");
-        ARTWORK_FOLDER = props.getProperty("artwork.folder");
+        MUSIC_PATH = getConfig(props, "MUSIC_PATH", "music.path");
+        ARTWORK_PATH = getConfig(props, "ARTWORK_PATH", "artwork.path");
 
-        PORT = props.getProperty("app.port");
-        SUBSONIC_AUTH_SECRET = props.getProperty("subsonic.auth.secret");
-        ADMIN_USERNAME = props.getProperty("admin.username");
-        ADMIN_PASSWORD = props.getProperty("admin.password");
-        FFMPEG_PATH = props.getProperty("ffmpeg.path", "ffmpeg");
-        CORS_ALLOWED_ORIGINS = props.getProperty("cors.allowed.origins", "http://localhost:3000");
-        SESSION_COOKIE_SECURE = props.getProperty("session.cookie.secure", "false");
-        REQUEST_LOGGING = props.getProperty("request.logging.enabled", "false");
+        PORT = getConfig(props, "OURMUSIC_PORT", "ourmusic.port");
+
+        ADMIN_PASSWORD = getConfig(props, "ADMIN_PASSWORD", "admin.password");
+        ADMIN_USERNAME = getConfig(props, "ADMIN_USERNAME", "admin.username");
+
+        FFMPEG_PATH = getConfig(props, "FFMPEG_PATH", "ffmpeg.path");
+        SUBSONIC_AUTH_SECRET = getConfig(props, "SUBSONIC_AUTH_SECRET", "subsonic.auth.secret");
+
+        CORS_ALLOWED_ORIGINS = getConfig(props, "CORS_ALLOWED_ORIGINS", "cors.allowed.origins");
+        SESSION_COOKIE_SECURE = getConfig(props, "SESSION_COOKIE_SECURE", "session.cookie.secure");
+        REQUEST_LOGGING = getConfig(props, "REQUEST_LOGGING_ENABLED", "request.logging.enabled");
 
         LOG.info("Properties loaded");
+    }
+
+    private static String getConfig(java.util.Properties props, String envKey, String propertyKey) {
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isBlank()) {
+            return envValue;
+        }
+        return props.getProperty(propertyKey);
     }
 
     public static String getDBURL() {
@@ -65,11 +77,11 @@ public class Properties {
     }
 
     public static String getSongsFolder() {
-        return SONGS_FOLDER;
+        return MUSIC_PATH;
     }
 
     public static String getSongsArtworkFolder() {
-        return ARTWORK_FOLDER;
+        return ARTWORK_PATH;
     }
 
     public static int getPort() {

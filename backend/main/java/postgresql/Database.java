@@ -40,6 +40,20 @@ public class Database {
         connection = createConnection();
     }
 
+    public static boolean healthCheck() {
+        if (connection == null) {
+            return false;
+        }
+
+        try (PreparedStatement stmt = connection.prepareStatement("SELECT 1");
+             ResultSet ignored = stmt.executeQuery()) {
+            return true;
+        } catch (SQLException e) {
+            LOG.debug("Database health check failed", e);
+            return false;
+        }
+    }
+
     public static void init() throws SQLException {
         String artistsTable = """
                 CREATE TABLE IF NOT EXISTS artists (
