@@ -7,6 +7,7 @@ import routes.api.AdminRoutes;
 import routes.api.AlbumRoutes;
 import routes.api.ArtistRoutes;
 import routes.api.AuthRoutes;
+import routes.api.HealthRoutes;
 import routes.api.PlaylistRoutes;
 import routes.api.SongRoutes;
 import routes.api.UserRoutes;
@@ -62,6 +63,7 @@ public class Server {
         AlbumRoutes.register(app);
         ArtistRoutes.register(app);
         AuthRoutes.register(app);
+        HealthRoutes.register(app);
         PlaylistRoutes.register(app);
         SongRoutes.register(app);
         UserRoutes.register(app);

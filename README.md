@@ -85,6 +85,7 @@ MUSIC_PATH=/path/to/music
 ARTWORK_PATH=/path/to/ourmusic-artwork
 
 OURMUSIC_PORT=8808
+FRONTEND_PORT=3000
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 SESSION_COOKIE_SECURE=false
 
@@ -190,10 +191,16 @@ Docker Compose uses the same `.env` file:
 cp .env.example .env
 ```
 
-Start PostgreSQL and the backend:
+Start PostgreSQL, the backend, and the frontend:
 
 ```bash
 make docker-up
+```
+
+The Docker frontend listens on `FRONTEND_PORT`, usually:
+
+```text
+http://localhost:3000
 ```
 
 Check running containers:
@@ -208,7 +215,7 @@ View backend logs:
 make docker-logs
 ```
 
-Rebuild after backend code changes:
+Rebuild after backend or frontend code changes:
 
 ```bash
 make docker-restart

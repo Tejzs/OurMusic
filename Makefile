@@ -8,6 +8,7 @@ jar:
 
 docker-build: check-env jar
 	docker build -t ourmusic-backend .
+	docker compose build frontend
 
 docker-up: check-env docker-build
 	docker compose up -d
@@ -19,7 +20,7 @@ docker-reset:
 	docker compose down -v
 
 docker-restart: check-env docker-build
-	docker compose up -d --force-recreate backend
+	docker compose up -d --force-recreate backend frontend
 	$(MAKE) docker-clean-images
 
 docker-clean-images:

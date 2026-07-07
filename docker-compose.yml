@@ -8,12 +8,18 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - ourmusic_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ourmusic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     image: ourmusic-backend
     container_name: ourmusic-backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "${OURMUSIC_PORT}:8808"
     environment:
@@ -33,6 +39,35 @@ services:
     volumes:
       - ${MUSIC_PATH}:/music
       - ${ARTWORK_PATH}:/artwork
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8808/api/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    image: ourmusic-frontend
+    container_name: ourmusic-frontend
+    build:
+      context: ./frontend
+      args:
+        API_REWRITE_BASE_URL: http://backend:8808
+        NEXT_PUBLIC_API_BASE_URL: ""
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      API_REWRITE_BASE_URL: http://backend:8808
+      NEXT_PUBLIC_API_BASE_URL: ""
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/login"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   ourmusic_postgres_data:

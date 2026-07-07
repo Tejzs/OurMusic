@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://192.168.1.76:8808";
-const apiOrigin = new URL(apiBaseUrl);
+const publicApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const rewriteApiBaseUrl = process.env.API_REWRITE_BASE_URL || publicApiBaseUrl || "http://localhost:8808";
+const apiOrigin = new URL(rewriteApiBaseUrl);
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: [apiOrigin.hostname],
@@ -9,7 +10,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${apiBaseUrl}/api/:path*`,
+        destination: `${rewriteApiBaseUrl}/api/:path*`,
       },
     ];
   },
